@@ -65,7 +65,7 @@ function privateList(req, res, next) {
   });
 }
 
-const extraSelect = "SELECT id, name, description, price, unit, is_active AS active FROM hotel_extras";
+const extraFields = "id, name, description, price, unit, is_active AS active";
 const units = new Set(["stay", "night", "guest", "item"]);
 
 async function initializeGuestFeatures() {
@@ -75,8 +75,17 @@ async function initializeGuestFeatures() {
   ) CHARACTER SET utf8mb4`);
   await pool.query(`CREATE TABLE IF NOT EXISTS hotel_extras (
     id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(100) NOT NULL, description VARCHAR(1000) NOT NULL,
-    price DECIMAL(10,2) NOT NULL, unit VARCHAR(12) NOT NULL, is_active BOOLEAN NOT NULL DEFAULT TRUE
+    price DECIMAL(10,2) NOT NULL, unit VARCHAR(12) NOT NULL, is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    image MEDIUMTEXT NULL
   )`);
+  const [extraPhotoColumn] = await pool.query("SHOW COLUMNS FROM hotel_extras LIKE 'image'");
+  if (!extraPhotoColumn.length) {
+    try {
+      await pool.query("ALTER TABLE hotel_extras ADD COLUMN image MEDIUMTEXT NULL");
+    } catch (error) {
+      if (error.code !== "ER_DUP_FIELDNAME") throw error;
+    }
+  }
   await pool.query(`CREATE TABLE IF NOT EXISTS hotel_reviews (
     uid VARCHAR(128) PRIMARY KEY, display_name VARCHAR(100) NOT NULL,
     hotel_rating TINYINT NOT NULL, service_rating TINYINT NOT NULL,
@@ -118,7 +127,7 @@ async function priceExtras(conn, selections, nights, guests) {
   const quantities = new Map(selections.map(({ id, quantity }) => [id, quantity]));
   if (quantities.size !== selections.length) return null;
   if (!quantities.size) return [];
-  const [rows] = await conn.query(extraSelect + " WHERE is_active = 1 AND id IN (?)", [[...quantities.keys()]]);
+  const [rows] = await conn.query(`SELECT ${extraFields} FROM hotel_extras WHERE is_active = 1 AND id IN (?)`, [[...quantities.keys()]]);
   if (rows.length !== quantities.size) return null;
   return rows.map(({ id, name, price, unit }) => {
     const quantity = { night: nights, guest: guests, item: quantities.get(id), stay: 1 }[unit];
@@ -230,31 +239,35 @@ function registerGuestFeatures(app, wrap) {
   }));
 
   app.get("/api/extras", wrap(async (_req, res) => {
-    const [rows] = await pool.query(extraSelect + " WHERE is_active = 1 ORDER BY name");
+    const [rows] = await pool.query(`SELECT ${extraFields}, image FROM hotel_extras WHERE is_active = 1 ORDER BY name`);
     res.json(rows);
   }));
   app.get("/api/admin/extras", account, admin, wrap(async (_req, res) => {
-    const [rows] = await pool.query(extraSelect + " ORDER BY name");
+    const [rows] = await pool.query(`SELECT ${extraFields}, image FROM hotel_extras ORDER BY name`);
     res.json(rows);
   }));
 
   const saveExtra = wrap(async (req, res) => {
-    const { name, description, price, unit, active } = req.body;
+    const { name, description, price, unit, active, image } = req.body;
     if (typeof name !== "string" || !name.trim() || name.trim().length > 100 ||
         typeof description !== "string" || description.trim().length > 1000 ||
         typeof price !== "number" || !Number.isFinite(price) || price < 0 || price > 999999 ||
         !units.has(unit) || typeof active !== "boolean") {
       return res.status(400).json({ message: "Enter a valid service name, price and billing unit." });
     }
+    if (image !== undefined && (typeof image !== "string" || image.length > 85000 ||
+        (image && !/^data:image\/jpeg;base64,\/9j\/[A-Za-z0-9+/]+={0,2}$/.test(image)))) {
+      return res.status(400).json({ message: "Choose a valid service photo." });
+    }
     const values = [name.trim(), description.trim(), price, unit, active];
     if (req.params.id) {
       const [result] = await pool.query(
-        "UPDATE hotel_extras SET name = ?, description = ?, price = ?, unit = ?, is_active = ? WHERE id = ?",
-        [...values, req.params.id]
+        "UPDATE hotel_extras SET name = ?, description = ?, price = ?, unit = ?, is_active = ?, image = IF(?, ?, image) WHERE id = ?",
+        [...values, image !== undefined, image || null, req.params.id]
       );
       if (!result.affectedRows) return res.status(404).json({ message: "Service not found." });
     } else {
-      await pool.query("INSERT INTO hotel_extras (name, description, price, unit, is_active) VALUES (?, ?, ?, ?, ?)", values);
+      await pool.query("INSERT INTO hotel_extras (name, description, price, unit, is_active, image) VALUES (?, ?, ?, ?, ?, ?)", [...values, image || null]);
     }
     res.json({ message: "Service saved." });
   });

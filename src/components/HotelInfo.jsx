@@ -1837,6 +1837,7 @@ export default function HotelInfo({ user, onLogin, onGoogleLogin, onSignup, auth
                                   return next;
                                 });
                               }} />
+                              {item.image && <img className="booking-extra-photo" src={item.image} alt="" loading="lazy" />}
                               <span><strong>{item.name}</strong><small>{peso(item.price)} · {extraUnits[item.unit]}</small>
                                 <span>{item.description}</span>
                                 {quantity && <strong>{peso(extraAmount(item))}</strong>}
