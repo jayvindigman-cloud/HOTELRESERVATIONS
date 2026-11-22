@@ -707,6 +707,10 @@ body:has(.guest-account-dialog[open], .hotel-reservation, .hotel-receipt) { over
 .admin-movement-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
 .admin-movement-tile { padding: 8px 3px; border: 1px solid #cfddce; border-radius: 12px; background: #fff9; color: #284d43; }
 .admin-movement-tile:hover { background: #e0efdc; border-color: #94ad96; }
+.admin-movement-tile[aria-pressed="true"] { background: #e0efdc; border-color: #789c82; }
+.admin-movement-preview { margin-top: 8px; text-align: left; }
+.admin-movement-preview ul { display: grid; gap: 5px; margin: 0 0 6px; padding: 0; list-style: none; }
+.admin-movement-preview > p { margin: 6px 0 0; font-size: .82rem; }
 .admin-movement-tile > span { font-size: .82rem; }
 .admin-nav-item { position: relative; }
 .admin-nav-alert {

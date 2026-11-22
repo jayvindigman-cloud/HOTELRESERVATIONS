@@ -27,6 +27,7 @@ export default function AdminDashboard({ onLogout, currentUser }) {
   const [sidebarOpen, setSidebarOpen] = useState(() => !window.matchMedia("(max-width: 720px)").matches);
   const [reservations, setReservations] = useState([]);
   const [arrivalsTab, setArrivalsTab] = useState("Arrivals");
+  const [movementPeriod, setMovementPeriod] = useState("Today");
 
   const [searchQuery, setSearchQuery] = useState("");
   const [movementFilter, setMovementFilter] = useState(null);
@@ -302,10 +303,17 @@ export default function AdminDashboard({ onLogout, currentUser }) {
   const currentStays = reservations.filter((r) => r.checkIn <= today && r.checkOut > today);
   const confirmed = currentStays.filter((r) => r.status === "Confirmed");
   const totalBooked = confirmed.length;
+  const movementDate = (booking, tab) => tab === "Arrivals" ? booking.checkIn : (booking.actualCheckOut || booking.checkOut);
   function matchesMovement(booking, tab, period) {
-    const date = tab === "Arrivals" ? booking.checkIn : (booking.actualCheckOut || booking.checkOut);
-    return ["Confirmed", "Checked out"].includes(booking.status) && Boolean(date) && (period === "Today" ? date === today : date > today);
+    const date = movementDate(booking, tab);
+    if (!date) return false;
+    if (period === "Upcoming") return booking.status === "Confirmed" && date > today;
+    return ["Confirmed", "Checked out"].includes(booking.status) && date === today;
   }
+  const movementBookings = Object.fromEntries(["Today", "Upcoming"].map((period) => [period,
+    reservations.filter((booking) => matchesMovement(booking, arrivalsTab, period))
+      .sort((a, b) => movementDate(a, arrivalsTab).localeCompare(movementDate(b, arrivalsTab))),
+  ]));
 
   function openBookingList(status = "All", query = "", date = "") {
     setMovementFilter(null);
@@ -792,11 +800,24 @@ export default function AdminDashboard({ onLogout, currentUser }) {
                   >
                     <div className="admin-movement-grid">
                       {["Today", "Upcoming"].map((period) => (
-                        <button type="button" key={period} className="admin-movement-tile" onClick={() => openMovement(period)}>
+                        <button type="button" key={period} className="admin-movement-tile" aria-pressed={movementPeriod === period} onClick={() => setMovementPeriod(period)}>
                           <span>{period}</span>
-                          <strong className="admin-movement-count">{reservations.filter((booking) => matchesMovement(booking, arrivalsTab, period)).length}</strong>
+                          <strong className="admin-movement-count">{movementBookings[period].length}</strong>
                         </button>
                       ))}
+                    </div>
+                    <div className="admin-movement-preview" aria-label={movementPeriod + " " + arrivalsTab.toLowerCase()}>
+                      {movementBookings[movementPeriod].length ? <>
+                        <ul>
+                          {movementBookings[movementPeriod].slice(0, 5).map((booking) => <li key={booking.dbId}>
+                            <button type="button" className="admin-recent-booking" onClick={() => openBookingList("All", booking.id)}>
+                              <span><strong>{booking.guestName}</strong><small>{booking.roomType}{booking.roomNumber && " · " + booking.roomNumber}</small></span>
+                              <small>{movementDate(booking, arrivalsTab)}{arrivalsTab === "Departures" && booking.actualCheckOut && " · Checked out"}</small>
+                            </button>
+                          </li>)}
+                        </ul>
+                        <button type="button" className="hotel-action secondary" onClick={() => openMovement(movementPeriod)}>View in Bookings</button>
+                      </> : <p>No {movementPeriod === "Upcoming" ? "upcoming " : ""}{arrivalsTab.toLowerCase()}{movementPeriod === "Today" ? " today" : ""}.</p>}
                     </div>
                   </div>
                 </div>
