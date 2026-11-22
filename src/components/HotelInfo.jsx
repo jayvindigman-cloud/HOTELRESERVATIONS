@@ -716,6 +716,7 @@ export default function HotelInfo({ user, onLogin, onGoogleLogin, onSignup, auth
   const [roomSelections, setRoomSelections] = useState({});
   const [roomInventory, setRoomInventory] = useState(null);
   const [bookingReceipts, setBookingReceipts] = useState([]);
+  const [newReceipt, setNewReceipt] = useState(false);
   const [bookingError, setBookingError] = useState("");
   const [extras, setExtras] = useState([]);
   const [selectedExtras, setSelectedExtras] = useState({});
@@ -1015,6 +1016,7 @@ export default function HotelInfo({ user, onLogin, onGoogleLogin, onSignup, auth
 
       setBookingReceipt(result.reservation);
       setBookingReceipts(result.reservations || [result.reservation]);
+      setNewReceipt(true);
     } catch (error) {
       console.error("Error submitting reservation:", error);
       setBookingError("The reservation server is unavailable. Please try again.");
@@ -1027,12 +1029,14 @@ export default function HotelInfo({ user, onLogin, onGoogleLogin, onSignup, auth
     if (submittingBooking) return;
     setIsModalOpen(false);
     setBookingReceipt(null);
+    setNewReceipt(false);
     setFormData(emptyForm);
     removeVoucher();
   };
 
   const handleViewReceipt = (reservation) => {
     setAccountTab(null);
+    setNewReceipt(false);
     setBookingReceipts([]);
     setBookingReceipt(reservation);
     setIsModalOpen(true);
@@ -1581,7 +1585,7 @@ export default function HotelInfo({ user, onLogin, onGoogleLogin, onSignup, auth
             </button>
 
             {bookingReceipt ? (
-              <div>
+              <div className={newReceipt ? "booking-receipt-reveal" : undefined}>
                 {bookingReceipts.length > 1 && (
                   <div className="batch-receipt-summary">
                     <strong>{bookingReceipts.length} rooms reserved ? {peso(bookingReceipts.reduce((sum, item) => sum + Number(item.totalAmount), 0))}</strong>
@@ -1594,6 +1598,8 @@ export default function HotelInfo({ user, onLogin, onGoogleLogin, onSignup, auth
                   </div>
                 )}
                 <div
+                  className="booking-receipt-status"
+                  role="status"
                   style={{
                     backgroundColor: receiptTone.bg,
                     color: receiptTone.color,
@@ -1605,7 +1611,13 @@ export default function HotelInfo({ user, onLogin, onGoogleLogin, onSignup, auth
                     fontSize: "1.05rem",
                   }}
                 >
-                  {receiptTone.text}
+                  {newReceipt && <span className="booking-receipt-mark" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="25" height="25" fill="none" stroke="currentColor"
+                      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="m5 12 4 4L19 6" pathLength="1" />
+                    </svg>
+                  </span>}
+                  <span>{receiptTone.text}</span>
                 </div>
 
                 <div
