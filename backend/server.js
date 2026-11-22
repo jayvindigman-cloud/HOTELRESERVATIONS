@@ -498,11 +498,12 @@ app.get("/api/reservations/:id/available-key-rooms", account, admin, wrap(async 
   if (!booking) return res.status(404).json({ message: "Reservation not found." });
   const [rooms] = await pool.query(
     `SELECT u.room_number AS roomNumber, MIN(k.key_tag) AS keyTag
-       FROM key_room_units u JOIN physical_keys k ON k.room_number = u.room_number
+       FROM key_room_units u JOIN physical_keys k ON BINARY k.room_number = BINARY u.room_number
       WHERE u.room_type_id = ? AND k.status = 'Available'
         AND NOT EXISTS (
           SELECT 1 FROM reservations r
-           WHERE r.room_number = u.room_number AND r.status = 'Confirmed' AND r.id <> ?
+           WHERE r.room_number = CONVERT(u.room_number USING utf8mb4) COLLATE utf8mb4_general_ci
+             AND r.status = 'Confirmed' AND r.id <> ?
              AND r.check_in < ? AND COALESCE(r.actual_check_out, r.check_out) > ?
         )
       GROUP BY u.room_number ORDER BY u.room_number`,
@@ -541,8 +542,8 @@ app.patch("/api/reservations/:id/status", account, admin, wrap(async (req, res) 
     }
     if (status === "Confirmed" && requireAvailableKey === true) {
       const [keys] = await connection.query(
-        `SELECT k.id FROM physical_keys k JOIN key_room_units u ON u.room_number = k.room_number
-          WHERE u.room_type_id = ? AND u.room_number = ? AND k.status = 'Available' LIMIT 1 FOR UPDATE`,
+        `SELECT k.id FROM physical_keys k JOIN key_room_units u ON BINARY u.room_number = BINARY k.room_number
+          WHERE u.room_type_id = ? AND BINARY u.room_number = BINARY ? AND k.status = 'Available' LIMIT 1 FOR UPDATE`,
         [current.roomId, finalRoomNumber]
       );
       if (!keys.length) {
