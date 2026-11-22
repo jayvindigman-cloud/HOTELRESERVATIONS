@@ -1860,30 +1860,19 @@ function AdminRoomsTab({ rooms, onSaved }) {
           {rooms.map((room) => {
             const photo = room.image || roomDescriptions.find((item) => item.name === room.name || item.name.toLowerCase().replaceAll(" ", "-") === room.slug)?.image;
             return (
-            <div
-              key={room.id}
-              style={{
-                padding: "20px",
-                border: "1px solid #eef2f5",
-                borderRadius: "8px",
-                backgroundColor: "#fcfdfe",
-                opacity: room.is_active ? 1 : 0.6,
-              }}
-            >
-              {photo && <img className="admin-room-photo" src={photo} alt={room.name} loading="lazy" />}
-              <h4 style={{ margin: "0 0 4px 0", color: "#2f4f4f" }}>{room.name}</h4>
-              <div style={{ fontSize: "0.8rem", color: "#888", marginBottom: "10px" }}>
-                {room.category}{room.is_active ? "" : " · Hidden from guests"}
-              </div>
-              <div style={{ fontSize: "0.85rem", color: "#666", lineHeight: 1.7, marginBottom: "14px" }}>
-                <div>Price: <strong>{peso(room.price)}</strong> / night</div>
-                <div>Capacity: <strong>{room.capacity}</strong> guest{room.capacity > 1 ? "s" : ""}</div>
-                <div>Total inventory: <strong>{room.total_units}</strong> rooms</div>
-              </div>
-              <button type="button" onClick={() => openEdit(room)} style={adPrimaryButton}>
-                Edit Details
-              </button>
-            </div>
+              <article className="admin-room-card" key={room.id}>
+                {photo && <img className="admin-room-photo" src={photo} alt="" loading="lazy" />}
+                <div className="admin-room-glass">
+                  <h4>{room.name}</h4>
+                  <p>{room.category}{room.is_active ? "" : " · Hidden from guests"}</p>
+                  <div className="admin-room-facts">
+                    <div>Price: <strong>{peso(room.price)}</strong> / night</div>
+                    <div>Capacity: <strong>{room.capacity}</strong> guest{room.capacity > 1 ? "s" : ""}</div>
+                    <div>Total inventory: <strong>{room.total_units}</strong> rooms</div>
+                  </div>
+                  <button type="button" onClick={() => openEdit(room)} style={adPrimaryButton}>Edit Details</button>
+                </div>
+              </article>
             );
           })}
         </div>
