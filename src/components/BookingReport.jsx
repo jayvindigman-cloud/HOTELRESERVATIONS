@@ -2,8 +2,15 @@
 import { createPortal } from "react-dom";
 import { formatPeso, hotelDate, hotelToday } from "../hotel-api";
 
+const periods = [
+  [1, "Today"],
+  [7, "Last 7 days"],
+  [30, "Last 30 days"],
+  [365, "Last 365 days"],
+];
+
 export default function BookingReport({ reservations, rooms }) {
-  const [period, setPeriod] = useState("today");
+  const [days, setDays] = useState(1);
   const [room, setRoom] = useState("");
   useEffect(() => {
     document.body.classList.add("has-booking-report");
@@ -12,7 +19,7 @@ export default function BookingReport({ reservations, rooms }) {
 
   const today = hotelToday();
   const firstDate = new Date(today + "T00:00:00Z");
-  if (period === "month") firstDate.setUTCDate(firstDate.getUTCDate() - 29);
+  firstDate.setUTCDate(firstDate.getUTCDate() - (days - 1));
   const start = firstDate.toISOString().slice(0, 10);
   const withDate = reservations.map((booking) => ({
     ...booking,
@@ -27,8 +34,8 @@ export default function BookingReport({ reservations, rooms }) {
     <section className="booking-report" aria-labelledby="booking-report-title">
       <h3 id="booking-report-title">Print booking report</h3>
       <div className="booking-report-controls">
-        <label>Booked during<select value={period} onChange={(event) => setPeriod(event.target.value)}>
-          <option value="today">Today</option><option value="month">Last 30 days</option>
+        <label>Booked during<select value={days} onChange={(event) => setDays(Number(event.target.value))}>
+          {periods.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
         </select></label>
         <label>Room type<select value={room} onChange={(event) => setRoom(event.target.value)}>
           <option value="">All room types</option>
