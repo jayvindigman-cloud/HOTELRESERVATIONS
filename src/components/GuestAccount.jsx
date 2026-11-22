@@ -5,6 +5,7 @@ import { sendEmailVerification } from "firebase/auth";
 import { auth } from "../Firebase";
 import { accountFetch, readJson, formatPeso, hotelToday } from "../hotel-api";
 import GuestReviews from "./GuestReviews";
+import AdminIcon from "./AdminIcon";
 
 async function profilePicture(file) {
   if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 10 * 1024 * 1024) {
@@ -131,10 +132,10 @@ export default function GuestAccount({ api, user, rooms, menu, initialTab = "pro
           {user.photoURL ? <img className="guest-profile-avatar" src={user.photoURL} alt="" />
             : <span className="guest-profile-avatar" aria-hidden="true">{(user.name || user.email).slice(0, 1).toUpperCase()}</span>}
           <div><strong>{user.name}</strong><p>{user.email}</p></div>
-          <button className="hotel-action secondary" type="button" disabled={!!action} onClick={() => run("logout", async () => {
+          <button className="hotel-action secondary hotel-sign-out-button" type="button" disabled={!!action} onClick={() => run("logout", async () => {
             await onLogout();
             onClose();
-          })}>Sign out</button>
+          })}><AdminIcon name="Logout" />Sign out</button>
         </div>
         <div className="account-tabs" aria-label="Account sections">
           {[["profile", "Details"], ["reservations", "Reservations"], ["orders", "Food orders"], ["reviews", "Reviews"]].map(([value, label]) => (

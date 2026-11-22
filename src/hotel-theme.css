@@ -667,6 +667,7 @@ body:has(.guest-account-dialog[open], .hotel-reservation, .hotel-receipt) { over
 .admin-notification-list :is(strong, span, small) { display: block; }
 .admin-notification-list small { color: #536c60; }
 .admin-icon { vertical-align: middle; flex-shrink: 0; }
+.hotel-sign-out-button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
 .hotel-admin-sidebar nav button { gap: 9px; }
 .hotel-admin-sidebar[data-expanded="false"] nav button { justify-content: center; }
 @media (prefers-reduced-motion: no-preference) {

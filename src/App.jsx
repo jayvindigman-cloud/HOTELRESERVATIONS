@@ -12,6 +12,7 @@ import {
 import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore'
 import Display from './components/AdminDashboard.jsx'
 import HotelInfo from './components/HotelInfo.jsx'
+import AdminIcon from "./components/AdminIcon";
 import { auth, db, googleProvider } from './Firebase.js'
 
 export default function App() {
@@ -227,7 +228,9 @@ export default function App() {
               <button type="button" className="hotel-action secondary" disabled={verificationBusy} onClick={() => handleVerification(false)}>
                 {verificationMethod === "otp" ? "Send another code" : "Resend verification email"}
               </button>
-              <button type="button" className="hotel-action secondary" disabled={verificationBusy} onClick={handleLogout}>Sign out</button>
+              <button type="button" className="hotel-action secondary hotel-sign-out-button" disabled={verificationBusy} onClick={handleLogout}>
+                <AdminIcon name="Logout" />Sign out
+              </button>
             </div>
           </form>
         </section>

@@ -453,6 +453,9 @@ export default function AdminDashboard({ onLogout, currentUser }) {
         >
           <button
             onClick={onLogout}
+            type="button"
+            className="hotel-sign-out-button"
+            aria-label="Sign out"
             style={{
               width: "100%",
               padding: "10px 16px",
@@ -474,7 +477,8 @@ export default function AdminDashboard({ onLogout, currentUser }) {
               (e.currentTarget.style.backgroundColor = "#b22222")
             }
           >
-            {sidebarOpen ? "Logout" : "Exit"}
+            <AdminIcon name="Logout" />
+            {sidebarOpen && "Logout"}
           </button>
         </div>
       </div>
