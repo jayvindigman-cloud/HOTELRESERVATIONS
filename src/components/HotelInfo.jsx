@@ -1163,6 +1163,7 @@ export default function HotelInfo({ user, onLogin, onGoogleLogin, onSignup, auth
           {user?.photoURL && <img className="guest-nav-avatar" src={user.photoURL} alt="" />}Profile
           {(guestUpdates.reservations || guestUpdates.orders) && <span className="guest-update-dot" aria-hidden="true" />}
         </button>
+      </header>
         <nav className="guest-mobile-navigation" aria-label="Hotel navigation">
           <a href="#home"><GuestNavIcon name="home" />Home</a>
           <a href="#rooms"><GuestNavIcon name="rooms" />Rooms</a>
@@ -1186,7 +1187,6 @@ export default function HotelInfo({ user, onLogin, onGoogleLogin, onSignup, auth
             </div>
           </details>
         </nav>
-      </header>
 
       <section
         id="home" className="hotel-hero"

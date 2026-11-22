@@ -990,24 +990,30 @@ body:has(.guest-account-dialog[open], .hotel-reservation, .hotel-receipt) { over
 .guest-site-shell :is(.guest-mobile-navigation, .guest-desktop-navigation) { display: none; }
 .guest-site-shell .bb-tray { top: calc(112px + env(safe-area-inset-top, 0px)); }
 @media (max-width: 900px) {
-  .guest-site-shell .bb-tray { top: calc(132px + env(safe-area-inset-top, 0px)); padding: 9px 14px; }
+  .guest-site-shell { padding-bottom: calc(70px + env(safe-area-inset-bottom, 0px)) !important; }
+  .guest-site-shell .bb-tray { top: calc(88px + env(safe-area-inset-top, 0px)); padding: 9px 14px; }
   .guest-site-shell .hotel-navigation {
-    flex-wrap: wrap;
     gap: 6px;
     padding: 7px 10px !important;
     border-radius: 22px;
   }
-  .guest-site-shell .hotel-navigation .guest-mobile-navigation {
+  .guest-site-shell .guest-mobile-navigation {
+    position: fixed;
+    z-index: 1001;
+    left: 50%;
+    bottom: calc(6px + env(safe-area-inset-bottom, 0px));
+    transform: translateX(-50%);
+    width: min(500px, calc(100% - 16px));
     display: grid !important;
-    flex: 0 0 100%;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 3px;
     max-height: none;
     overflow: visible;
     padding: 3px;
+    border: 1px solid #fff9;
     border-radius: 15px;
   }
-  .hotel-navigation .guest-mobile-navigation > :is(a, button), .guest-nav-more > summary {
+  .guest-mobile-navigation > :is(a, button), .guest-nav-more > summary {
     display: flex !important;
     flex-direction: column;
     align-items: center;
@@ -1031,11 +1037,11 @@ body:has(.guest-account-dialog[open], .hotel-reservation, .hotel-receipt) { over
   }
   .guest-nav-more { position: relative; }
   .guest-nav-more summary::-webkit-details-marker { display: none; }
-  .guest-nav-more > div { display: grid; position: absolute; right: 0; top: calc(100% + 8px); min-width: 158px; padding: 5px; background: #fffdf3; border: 1px solid #d1dcc8; border-radius: 12px; box-shadow: var(--hotel-shadow); }
+  .guest-nav-more > div { display: grid; position: absolute; right: 0; bottom: calc(100% + 8px); min-width: 158px; padding: 5px; background: #fffdf3; border: 1px solid #d1dcc8; border-radius: 12px; box-shadow: var(--hotel-shadow); }
   .guest-nav-more:not([open]) > div { display: none; }
-  .guest-nav-more > div :is(a, button) { justify-content: flex-start; gap: 6px; padding: 5px 8px; color: var(--guest-forest); background: transparent; border: 0; text-decoration: none; }
+  .guest-nav-more > div :is(a, button) { display: flex; align-items: center; justify-content: flex-start; min-height: 42px; gap: 6px; padding: 5px 8px; color: var(--guest-forest); background: transparent; border: 0; text-decoration: none; }
   .guest-nav-more > div :is(a, button):hover { background: #ecf2e3; }
-  #root .guest-site-shell section[id] { scroll-margin-top: 138px; }
+  #root .guest-site-shell section[id] { scroll-margin-top: 85px; }
 }
 @media (min-width: 901px) {
   .guest-site-shell .guest-desktop-navigation { display: flex; align-items: center; gap: 4px; }
