@@ -1,6 +1,7 @@
 export default function ContactInput({ onChange, ...props }) {
   return <input
     {...props}
+    placeholder="09XXXXXXXXX"
     type="tel"
     inputMode="numeric"
     autoComplete="tel-national"

@@ -542,7 +542,6 @@ function FoodOrder({ cart, setCart, menu, addToCart, user, onClose, notice, refr
                 <ContactInput
                   id="orderPhone"
                   className="bb-input"
-                  placeholder="09171234567"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                 />
@@ -1819,7 +1818,6 @@ export default function HotelInfo({ user, onLogin, onGoogleLogin, onSignup, auth
                         id="phone"
                         className="bb-input"
                         name="phone"
-                        placeholder="09171234567"
                         value={formData.phone}
                         onChange={handleInputChange}
                       />
