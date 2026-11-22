@@ -68,6 +68,21 @@ function privateList(req, res, next) {
 const extraFields = "id, name, description, price, unit, is_active AS active";
 const units = new Set(["stay", "night", "guest", "item"]);
 
+function validExtraImage(value) {
+  if (typeof value !== "string") return false;
+  if (!value) return true;
+  if (value.startsWith("data:")) {
+    return value.length <= 85000 && /^data:image\/jpeg;base64,\/9j\/[A-Za-z0-9+/]+={0,2}$/.test(value);
+  }
+  if (value.length > 2048) return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && !url.username && !url.password;
+  } catch {
+    return false;
+  }
+}
+
 async function initializeGuestFeatures() {
   await pool.query(`CREATE TABLE IF NOT EXISTS guest_directory_profiles (
     uid VARCHAR(128) PRIMARY KEY, email VARCHAR(160) NOT NULL UNIQUE, name VARCHAR(100) NOT NULL,
@@ -255,9 +270,8 @@ function registerGuestFeatures(app, wrap) {
         !units.has(unit) || typeof active !== "boolean") {
       return res.status(400).json({ message: "Enter a valid service name, price and billing unit." });
     }
-    if (image !== undefined && (typeof image !== "string" || image.length > 85000 ||
-        (image && !/^data:image\/jpeg;base64,\/9j\/[A-Za-z0-9+/]+={0,2}$/.test(image)))) {
-      return res.status(400).json({ message: "Choose a valid service photo." });
+    if (image !== undefined && !validExtraImage(image)) {
+      return res.status(400).json({ message: "Choose a photo or enter a direct HTTPS image link." });
     }
     const values = [name.trim(), description.trim(), price, unit, active];
     if (req.params.id) {

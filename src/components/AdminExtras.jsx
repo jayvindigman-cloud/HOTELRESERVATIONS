@@ -34,6 +34,7 @@ export default function AdminExtras({ api }) {
   const [items, setItems] = useState([]);
   const [form, setForm] = useState(null);
   const [message, setMessage] = useState("");
+  const [photoError, setPhotoError] = useState(false);
   const [busy, setBusy] = useState(false);
   const load = useCallback(async () => {
     try {
@@ -44,10 +45,18 @@ export default function AdminExtras({ api }) {
   }, [api]);
   useEffect(() => { load(); }, [load]);
   const set = (field, value) => setForm((previous) => ({ ...previous, [field]: value }));
+  const openForm = (item) => {
+    setPhotoError(false);
+    setForm({ ...item, image: item.image || "" });
+  };
 
   async function save(event) {
     event.preventDefault();
     if (busy) return;
+    if (form.image && photoError && items.find((item) => item.id === form.id)?.image !== form.image) {
+      setMessage("This link did not load an image. Try copying the image address.");
+      return;
+    }
     setMessage("");
     setBusy(true);
     try {
@@ -72,6 +81,7 @@ export default function AdminExtras({ api }) {
     if (!file) return;
     setBusy(true);
     setMessage("");
+    setPhotoError(false);
     try {
       set("image", await preparePhoto(file));
     } catch (error) {
@@ -85,7 +95,7 @@ export default function AdminExtras({ api }) {
     <section className="hotel-glass admin-extras">
       <h3>Extras &amp; services</h3>
       <p>Available services appear in the guest reservation form.</p>
-      <button type="button" className="hotel-action" disabled={busy} onClick={() => setForm(emptyExtra)}>Add service</button>
+      <button type="button" className="hotel-action" disabled={busy} onClick={() => openForm(emptyExtra)}>Add service</button>
       {message && <p role="status">{message}</p>}
       {form && (
         <form className="hotel-glass admin-extra-form" onSubmit={save}>
@@ -93,9 +103,17 @@ export default function AdminExtras({ api }) {
           <label>Name<input required maxLength={100} value={form.name} onChange={(event) => set("name", event.target.value)} /></label>
           <label>Description<textarea maxLength={1000} value={form.description} onChange={(event) => set("description", event.target.value)} /></label>
           <label>Service photo<input type="file" accept="image/jpeg,image/png,image/webp" disabled={busy} onChange={pickPhoto} /></label>
-          {form.image && <div className="admin-extra-photo-preview">
-            <img src={form.image} alt="Service photo preview" />
-            <button type="button" className="hotel-action secondary" disabled={busy} onClick={() => set("image", "")}>Remove photo</button>
+          <label>Or paste a direct HTTPS image link
+            <input type="url" maxLength={2048} placeholder="https://" disabled={busy}
+              value={form.image.startsWith("data:") ? "" : form.image}
+              onChange={(event) => { setPhotoError(false); set("image", event.target.value.trim()); }} />
+            <small>In Google Images, open the photo and choose Copy image address.</small>
+          </label>
+          {/^(data:image\/jpeg;|https:\/\/)/i.test(form.image) && <div className="admin-extra-photo-preview">
+            {photoError ? <small role="status">Photo preview could not load.</small> :
+              <img src={form.image} alt="Service photo preview" referrerPolicy="no-referrer" onError={() => setPhotoError(true)} />}
+            <button type="button" className="hotel-action secondary" disabled={busy}
+              onClick={() => { setPhotoError(false); set("image", ""); }}>Remove photo</button>
           </div>}
           <label>Price (PHP)<input type="number" min="0" max="999999" step=".01" required value={form.price} onChange={(event) => set("price", event.target.value)} /></label>
           <label>Billing unit<select value={form.unit} onChange={(event) => set("unit", event.target.value)}>
@@ -108,12 +126,12 @@ export default function AdminExtras({ api }) {
       <div className="admin-extra-list">
         {items.map((item) => (
           <article key={item.id} className="admin-room-card admin-extra-card" data-photo={Boolean(item.image)}>
-            {item.image && <img className="admin-room-photo" src={item.image} alt="" loading="lazy" />}
+            {item.image && <img className="admin-room-photo" src={item.image} alt="" loading="lazy" referrerPolicy="no-referrer" />}
             <div className="admin-room-glass">
               <h4>{item.name}</h4>
               {item.description && <p>{item.description}</p>}
               <p><strong>{formatPeso(item.price)}</strong> · {extraUnits[item.unit]} · {item.active ? "Available" : "Hidden"}</p>
-              <button type="button" className="hotel-action secondary" disabled={busy} onClick={() => setForm({ ...item, image: item.image || "" })}>Edit service</button>
+              <button type="button" className="hotel-action secondary" disabled={busy} onClick={() => openForm(item)}>Edit service</button>
             </div>
           </article>
         ))}
