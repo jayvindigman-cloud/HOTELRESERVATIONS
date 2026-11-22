@@ -708,6 +708,13 @@ app.patch("/api/orders/:id/status", account, admin, wrap(async (req, res) => {
   res.json({ message: "Order updated." });
 }));
 
+app.get("/api/admin/revenue", account, admin, wrap(async (_req, res) => {
+  const [[revenue]] = await pool.query(`SELECT
+    COALESCE((SELECT SUM(total_amount) FROM reservations WHERE payment_status='Paid' AND status<>'Cancelled'), 0) AS bookings,
+    COALESCE((SELECT SUM(total_amount) FROM food_orders WHERE status='Served'), 0) AS foodOrders`);
+  res.set("Cache-Control", "no-store").json(revenue);
+}));
+
 app.get("/api/admin/notifications", account, admin, wrap(async (_req, res) => {
   const [[bookings], [orders]] = await Promise.all([
     pool.query("SELECT id, 'reservation' AS kind, reservation_code AS code, guest_name AS guestName, UNIX_TIMESTAMP(created_at) AS createdAt FROM reservations ORDER BY created_at DESC, id DESC LIMIT 30"),

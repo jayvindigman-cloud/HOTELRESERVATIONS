@@ -39,6 +39,8 @@ export default function AdminDashboard({ onLogout, currentUser }) {
   const [rooms, setRooms] = useState([]);
   const [foodOrderTarget, setFoodOrderTarget] = useState(null);
   const [confirmTarget, setConfirmTarget] = useState(null);
+  const [revenue, setRevenue] = useState(null);
+  const [revenueError, setRevenueError] = useState(false);
 
   const emptyForm = {
     guestName: "",
@@ -59,6 +61,24 @@ export default function AdminDashboard({ onLogout, currentUser }) {
     loadReservations();
     loadRooms();
   }, []);
+
+  useEffect(() => {
+    if (activeTab !== "Dashboard") return;
+    const controller = new AbortController();
+    async function refreshRevenue() {
+      try {
+        const totals = await accountFetch(API + "/admin/revenue", { signal: controller.signal }).then(readJson);
+        if (controller.signal.aborted) return;
+        setRevenue(totals);
+        setRevenueError(false);
+      } catch {
+        if (!controller.signal.aborted) setRevenueError(true);
+      }
+    }
+    refreshRevenue();
+    const timer = setInterval(refreshRevenue, 20000);
+    return () => { clearInterval(timer); controller.abort(); };
+  }, [activeTab]);
 
   const loadRooms = async () => {
     try {
@@ -560,6 +580,16 @@ export default function AdminDashboard({ onLogout, currentUser }) {
               }}
             >
               <div>
+                <section className="hotel-admin-panel admin-revenue-card" aria-labelledby="admin-revenue-title">
+                  <h3 id="admin-revenue-title">Total Revenue</h3>
+                  {revenueError ? <p role="status">Revenue is temporarily unavailable.</p> : revenue ? <>
+                    <strong>{peso(Number(revenue.bookings) + Number(revenue.foodOrders))}</strong>
+                    <dl>
+                      <div><dt>Paid bookings</dt><dd>{peso(revenue.bookings)}</dd></div>
+                      <div><dt>Served food orders</dt><dd>{peso(revenue.foodOrders)}</dd></div>
+                    </dl>
+                  </> : <p role="status">Loading revenue…</p>}
+                </section>
                 <div className="hotel-admin-panel"
                   style={{
                     backgroundColor: "#ffffff",

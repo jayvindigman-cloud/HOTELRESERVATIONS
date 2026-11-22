@@ -1178,3 +1178,9 @@ body:has(.guest-account-dialog[open], .hotel-reservation, .hotel-receipt) { over
   color: #21483e;
   overflow-wrap: anywhere;
 }
+.admin-revenue-card { margin-bottom: 16px; padding: 16px 20px; text-align: left; }
+.admin-revenue-card h3 { margin: 0; color: #345c4d; font-size: .92rem; }
+.admin-revenue-card > strong { display: block; margin-block: 4px 8px; color: #23483b; font-size: clamp(1.45rem, 3vw, 2rem); overflow-wrap: anywhere; }
+.admin-revenue-card dl { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 0; }
+.admin-revenue-card dt { color: #526a5d; font-size: .78rem; }
+.admin-revenue-card dd { margin: 0; color: #22473e; font-weight: 700; }
