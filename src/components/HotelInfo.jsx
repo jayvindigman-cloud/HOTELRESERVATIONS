@@ -1132,26 +1132,25 @@ export default function HotelInfo({ user, onLogin, onGoogleLogin, onSignup, auth
           {user?.photoURL && <img className="guest-nav-avatar" src={user.photoURL} alt="" />}Profile
           {(guestUpdates.reservations || guestUpdates.orders) && <span className="guest-update-dot" aria-hidden="true" />}
         </button>
+        <nav className="guest-mobile-navigation" aria-label="Hotel navigation">
+          <a href="#home"><GuestNavIcon name="home" />Home</a>
+          <a href="#rooms"><GuestNavIcon name="rooms" />Rooms</a>
+          <button type="button" className="guest-alert-anchor" aria-label={guestUpdates.reservations ? "My Stays, reservation confirmed" : "My Stays"} onClick={() => setAccountTab("reservations")}>
+            <GuestNavIcon name="stays" />My Stays
+            {guestUpdates.reservations && <span className="guest-update-dot" aria-hidden="true" />}
+          </button>
+          <details className="guest-nav-more">
+            <summary><GuestNavIcon name="more" />More</summary>
+            <div>
+              <a href="#hotel" onClick={closeGuestMenu}>The Hotel</a>
+              <a href="#food" onClick={closeGuestMenu}>Food &amp; Drink</a>
+              <a href="#reviews" onClick={closeGuestMenu}>Reviews</a>
+              <a href="#contact" onClick={closeGuestMenu}>Contact</a>
+              <button type="button" onClick={(event) => { closeGuestMenu(event); handleOpenModal(); }}>Book a room</button>
+            </div>
+          </details>
+        </nav>
       </header>
-
-      <nav className="guest-bottom-navigation" aria-label="Hotel navigation">
-        <a href="#home"><GuestNavIcon name="home" />Home</a>
-        <a href="#rooms"><GuestNavIcon name="rooms" />Rooms</a>
-        <button type="button" className="guest-alert-anchor" aria-label={guestUpdates.reservations ? "My Stays, reservation confirmed" : "My Stays"} onClick={() => setAccountTab("reservations")}>
-          <GuestNavIcon name="stays" />My Stays
-          {guestUpdates.reservations && <span className="guest-update-dot" aria-hidden="true" />}
-        </button>
-        <details className="guest-nav-more">
-          <summary><GuestNavIcon name="more" />More</summary>
-          <div>
-            <a href="#hotel" onClick={closeGuestMenu}>The Hotel</a>
-            <a href="#food" onClick={closeGuestMenu}>Food &amp; Drink</a>
-            <a href="#reviews" onClick={closeGuestMenu}>Reviews</a>
-            <a href="#contact" onClick={closeGuestMenu}>Contact</a>
-            <button type="button" onClick={(event) => { closeGuestMenu(event); handleOpenModal(); }}>Book a room</button>
-          </div>
-        </details>
-      </nav>
 
       <section
         id="home" className="hotel-hero"
