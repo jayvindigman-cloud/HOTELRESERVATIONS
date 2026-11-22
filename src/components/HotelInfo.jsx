@@ -5,6 +5,7 @@ import GuestReviews from "./GuestReviews";
 import { API_BASE, accountFetch, extraUnits, hotelToday, readJson } from "../hotel-api";
 import React, { useState, useEffect } from "react";
 import LoginModal from "./LoginModal";
+import ContactInput from "./ContactInput";
 import RoomDetails from "./RoomDetails";
 
 const hotelStyles = `
@@ -538,17 +539,10 @@ function FoodOrder({ cart, setCart, menu, addToCart, user, onClose, notice, refr
             <div className="bb-grid-2 bb-field">
               <div>
                 <label className="bb-label" htmlFor="orderPhone">Contact number</label>
-                <input
+                <ContactInput
                   id="orderPhone"
                   className="bb-input"
-                  type="tel"
                   placeholder="09171234567"
-                  required
-                  inputMode="numeric"
-                  minLength={11}
-                  maxLength={11}
-                  pattern="[0-9]{11}"
-                  title="Enter exactly 11 digits, for example 09171234567."
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                 />
@@ -1821,18 +1815,11 @@ export default function HotelInfo({ user, onLogin, onGoogleLogin, onSignup, auth
                     </div>
                     <div>
                       <label className="bb-label" htmlFor="phone">Contact number</label>
-                      <input
+                      <ContactInput
                         id="phone"
                         className="bb-input"
-                        type="tel"
                         name="phone"
                         placeholder="09171234567"
-                        required
-                        inputMode="numeric"
-                        minLength={11}
-                        maxLength={11}
-                        pattern="[0-9]{11}"
-                        title="Enter exactly 11 digits, for example 09171234567."
                         value={formData.phone}
                         onChange={handleInputChange}
                       />

@@ -4,6 +4,7 @@ import AdminClients from "./AdminClients";
 import AdminReviews from "./AdminReviews";
 import BookingReport from "./BookingReport";
 import AdminIcon from "./AdminIcon";
+import ContactInput from "./ContactInput";
 import AdminNotifications from "./AdminNotifications";
 import AdminMenu from "./AdminMenu";
 import { roomDescriptions, foodItems } from "../data/hotelCatalog";
@@ -1324,15 +1325,8 @@ export default function AdminDashboard({ onLogout, currentUser }) {
                 >
                   Phone:
                 </label>
-                <input
-                  type="tel"
+                <ContactInput
                   name="phone"
-                  inputMode="numeric"
-                  minLength={11}
-                  maxLength={11}
-                  pattern="[0-9]{11}"
-                  title="Enter exactly 11 digits."
-                  required
                   value={formData.phone}
                   onChange={handleInputChange}
                   style={{
@@ -1594,15 +1588,8 @@ export default function AdminDashboard({ onLogout, currentUser }) {
                 >
                   Phone:
                 </label>
-                <input
-                  type="tel"
+                <ContactInput
                   name="phone"
-                  inputMode="numeric"
-                  minLength={11}
-                  maxLength={11}
-                  pattern="[0-9]{11}"
-                  title="Enter exactly 11 digits."
-                  required
                   value={formData.phone}
                   onChange={handleInputChange}
                   style={{
