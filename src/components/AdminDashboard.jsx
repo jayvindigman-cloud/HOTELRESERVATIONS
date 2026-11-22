@@ -366,6 +366,39 @@ export default function AdminDashboard({ onLogout, currentUser }) {
     { id: "Reviews", label: "Reviews" },
     { id: "Customer Service", label: "Customer Service" },
   ];
+  const mobileSections = ["Dashboard", "Calendar", "Bookings", "Food Orders"];
+  const hasAdminAlert = (id) => id === "Food Orders" ? unreadAlerts.order
+    : ["Bookings", "Calendar"].includes(id) && unreadAlerts.reservation;
+
+  function navigateAdmin(id) {
+    setPressedIcon((previous) => ({ item: id, count: (previous?.count || 0) + 1 }));
+    if (id === "Food Orders") notifications.current?.acknowledgeBadges("order");
+    if (id === "Bookings" || id === "Calendar") notifications.current?.acknowledgeBadges("reservation");
+    if (id === "Bookings") {
+      openBookingList();
+      loadReservations();
+      return;
+    }
+    setFoodOrderTarget(null);
+    if (id === "Customer Service") setSupportEmail("");
+    setActiveTab(id);
+    if (id === "Calendar" || id === "Key Management") loadReservations();
+  }
+
+  const mobileButton = (item) => (
+    <button key={item.id} type="button" aria-current={activeTab === item.id ? "page" : undefined}
+      aria-label={hasAdminAlert(item.id) ? item.label + ", unread notifications" : item.label}
+      onClick={(event) => {
+        const menu = event.currentTarget.closest("details");
+        if (menu) menu.open = false;
+        navigateAdmin(item.id);
+        window.scrollTo({ top: 0, behavior: "instant" });
+      }}>
+      <AdminIcon name={item.id} />
+      <span>{item.label}</span>
+      {hasAdminAlert(item.id) && <span className="admin-nav-alert" aria-hidden="true" />}
+    </button>
+  );
 
   return (
     <div className="hotel-admin"
@@ -377,6 +410,19 @@ export default function AdminDashboard({ onLogout, currentUser }) {
         color: "#333",
       }}
     >
+      <header className="admin-mobile-header">
+        <div className="admin-mobile-brand">
+          <strong>Hytech Hotel &amp; Bistro</strong>
+          <button type="button" className="hotel-sign-out-button" onClick={onLogout}><AdminIcon name="Logout" /> Sign out</button>
+        </div>
+        <nav className="admin-mobile-nav" aria-label="Admin navigation">
+          {mobileSections.map((id) => mobileButton(menuItems.find((item) => item.id === id)))}
+          <details className="admin-mobile-more">
+            <summary data-active={!mobileSections.includes(activeTab)}><AdminIcon name="More" /><span>More</span></summary>
+            <div>{menuItems.filter((item) => !mobileSections.includes(item.id)).map(mobileButton)}</div>
+          </details>
+        </nav>
+      </header>
       <div className="hotel-admin-sidebar" data-expanded={sidebarOpen}
         style={{
           width: sidebarOpen ? "250px" : "75px",
@@ -428,26 +474,14 @@ export default function AdminDashboard({ onLogout, currentUser }) {
         <nav style={{ marginTop: "20px", flex: 1, padding: "0 10px" }}>
           {menuItems.map((item) => {
             const isActive = activeTab === item.id;
-            const hasAlert = item.id === "Food Orders" ? unreadAlerts.order
-              : ["Bookings", "Calendar"].includes(item.id) && unreadAlerts.reservation;
+            const hasAlert = hasAdminAlert(item.id);
             return (
               <button
                 key={item.id}
                 aria-current={isActive ? "page" : undefined}
                 className="admin-nav-item"
                 aria-label={hasAlert ? item.label + ", unread notifications" : item.label}
-                onClick={() => {
-                  setPressedIcon((previous) => ({ item: item.id, count: (previous?.count || 0) + 1 }));
-                  if (item.id === "Food Orders") notifications.current?.acknowledgeBadges("order");
-                  if (item.id === "Bookings" || item.id === "Calendar") notifications.current?.acknowledgeBadges("reservation");
-                  if (item.id === "Bookings") openBookingList();
-                  else {
-                    setFoodOrderTarget(null);
-                    if (item.id === "Customer Service") setSupportEmail("");
-                    setActiveTab(item.id);
-                    if (item.id === "Calendar" || item.id === "Key Management") loadReservations();
-                  }
-                }}
+                onClick={() => navigateAdmin(item.id)}
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -539,6 +573,7 @@ export default function AdminDashboard({ onLogout, currentUser }) {
         >
           <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
             <button
+              className="admin-sidebar-toggle"
               aria-expanded={sidebarOpen}
               aria-label="Toggle admin navigation"
               onClick={() => setSidebarOpen(!sidebarOpen)}

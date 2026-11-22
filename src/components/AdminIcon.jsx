@@ -13,6 +13,7 @@
   Add: "M12 5v14M5 12h14",
   Check: "m5 12 4 4L19 6",
   Logout: "M11 4H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h6m5-4 4-4-4-4M9 12h11",
+  More: "M5 6h14M5 12h14M5 18h14",
 };
 
 export default function AdminIcon({ name }) {
