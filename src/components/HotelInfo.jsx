@@ -173,7 +173,7 @@ const hotelStyles = `
 .bb-menu-add:hover { background: #e6c680; transform: translateY(-1px); }
 .bb-tray {
   position: fixed;
-  right: 24px;
+  left: calc(16px + env(safe-area-inset-left, 0px));
   bottom: 24px;
   z-index: 1500;
   background: #10292a;
@@ -2000,7 +2000,7 @@ export default function HotelInfo({ user, onLogin, onGoogleLogin, onSignup, auth
 
       {cartCount > 0 && !isCartOpen && (
         <button type="button" className="bb-tray" onClick={handleOpenCart}>
-          View order ({cartCount})
+          My Order ({cartCount})
         </button>
       )}
 
