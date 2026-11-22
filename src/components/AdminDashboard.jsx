@@ -11,6 +11,7 @@ import AdminExtras from "./AdminExtras";
 import AdminCalendar from "./AdminCalendar";
 import { API_BASE, accountFetch, hotelToday, readJson } from "../hotel-api";
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import AdminKeysTab from "./AdminKeysTab";
 
 const API = API_BASE;
@@ -584,13 +585,30 @@ export default function AdminDashboard({ onLogout, currentUser }) {
             >
               <div>
                 <section className="hotel-admin-panel admin-revenue-card" aria-labelledby="admin-revenue-title">
-                  <h3 id="admin-revenue-title">Total Revenue</h3>
+                  <header>
+                    <h3 id="admin-revenue-title">Total Revenue</h3>
+                    <button type="button" className="hotel-action secondary" disabled={!revenue || revenueError}
+                      onClick={() => window.print()}>Print Revenue</button>
+                  </header>
                   {revenueError ? <p role="status">Revenue is temporarily unavailable.</p> : revenue ? <>
                     <strong>{peso(Number(revenue.bookings) + Number(revenue.foodOrders))}</strong>
                     <dl>
                       <div><dt>Paid bookings</dt><dd>{peso(revenue.bookings)}</dd></div>
                       <div><dt>Served food orders</dt><dd>{peso(revenue.foodOrders)}</dd></div>
                     </dl>
+                    {createPortal(
+                      <section className="admin-revenue-print" aria-label="Revenue report">
+                        <h1>Hytech Hotel &amp; Bistro</h1>
+                        <h2>Total Revenue Report</h2>
+                        <p>All-time totals as of {today}</p>
+                        <dl>
+                          <div><dt>Paid bookings</dt><dd>{peso(revenue.bookings)}</dd></div>
+                          <div><dt>Served food orders</dt><dd>{peso(revenue.foodOrders)}</dd></div>
+                          <div><dt>Total revenue</dt><dd>{peso(Number(revenue.bookings) + Number(revenue.foodOrders))}</dd></div>
+                        </dl>
+                        <p>Cancelled reservations are excluded. Food orders count when marked Served.</p>
+                      </section>, document.body
+                    )}
                   </> : <p role="status">Loading revenue…</p>}
                 </section>
                 <div className="hotel-admin-panel"

@@ -1194,11 +1194,24 @@ body:has(.guest-account-dialog[open], .hotel-reservation, .hotel-receipt) { over
   overflow-wrap: anywhere;
 }
 .admin-revenue-card { margin-bottom: 16px; padding: 16px 20px; text-align: left; }
+.admin-revenue-card header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
 .admin-revenue-card h3 { margin: 0; color: #345c4d; font-size: .92rem; }
 .admin-revenue-card > strong { display: block; margin-block: 4px 8px; color: #23483b; font-size: clamp(1.45rem, 3vw, 2rem); overflow-wrap: anywhere; }
 .admin-revenue-card dl { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 0; }
 .admin-revenue-card dt { color: #526a5d; font-size: .78rem; }
 .admin-revenue-card dd { margin: 0; color: #22473e; font-weight: 700; }
+.admin-revenue-print { display: none; }
+@media print {
+  body:has(> .admin-revenue-print) > :not(.admin-revenue-print) { display: none !important; }
+  body:has(> .admin-revenue-print) { background: white !important; color: black; }
+  .admin-revenue-print { display: block; color: black; font: 11pt/1.45 Arial, sans-serif; }
+  .admin-revenue-print h1 { margin: 0; font-size: 24pt; color: black; }
+  .admin-revenue-print h2 { margin: 6pt 0; font-size: 17pt; color: black; }
+  .admin-revenue-print dl { max-width: 130mm; }
+  .admin-revenue-print dl > div { display: flex; justify-content: space-between; gap: 12pt; padding: 6pt 0; border-bottom: 1px solid #aaa; }
+  .admin-revenue-print dl > div:last-child { font-weight: bold; }
+  .admin-revenue-print dd { margin: 0; }
+}
 .admin-recent-reservations { margin-top: 16px; padding: 12px; text-align: left; }
 .admin-recent-reservations header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px; }
 .admin-recent-reservations h3 { margin: 0; color: #345c4d; font-size: .95rem; }
