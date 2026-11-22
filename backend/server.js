@@ -1,5 +1,7 @@
 require('dotenv').config({ quiet: true });
 const { randomBytes } = require("node:crypto");
+const { readFile } = require("node:fs/promises");
+const path = require("node:path");
 const express = require("express");
 const cors = require("cors");
 const pool = require("./db");
@@ -729,10 +731,35 @@ registerGuestFeatures(app, wrap);
 registerSignupOtp(app, wrap, sendEmail, Boolean(transporter));
 registerMenu(app, wrap, account, admin);
 
+app.get("/api/health", async (_req, res) => {
+  res.set("Cache-Control", "no-store");
+  try {
+    await pool.query({ sql: "SELECT 1", timeout: 3000 });
+    res.json({ status: "ok" });
+  } catch {
+    res.status(503).json({ status: "unavailable" });
+  }
+});
+
+if (process.env.RAILWAY_ENVIRONMENT_ID) {
+  app.use(express.static(path.join(__dirname, "..", "dist")));
+}
+
 process.on("unhandledRejection", (e) => console.error("Unhandled rejection:", e));
 process.on("uncaughtException", (e) => console.error("Uncaught exception:", e));
 
-pool.query("SELECT 1")
+async function initializeDatabase() {
+  if (!process.env.RAILWAY_ENVIRONMENT_ID) {
+    await pool.query("SELECT 1");
+    return;
+  }
+  const schema = await readFile(path.join(__dirname, "schema.sql"), "utf8");
+  for (const statement of schema.split(";").map((part) => part.trim()).filter(Boolean)) {
+    await pool.query(statement);
+  }
+}
+
+initializeDatabase()
   .then(() => initializeKeys())
   .then(() => backfillRoomKeys())
   .then(() => initializeGuestFeatures())
@@ -742,4 +769,4 @@ pool.query("SELECT 1")
     const port = Number(process.env.PORT || 8080);
     return app.listen(port, () => console.log("Server running on port " + port + ", DB connected"));
   })
-  .catch((e) => { console.error("Cannot connect to MySQL. Is it started in XAMPP?\n", e.message); process.exit(1); });
+  .catch((e) => { console.error("Could not initialize the hotel database:", e.message); process.exit(1); });

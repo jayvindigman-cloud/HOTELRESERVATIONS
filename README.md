@@ -62,6 +62,24 @@ Run the root React app and the Express backend. On Windows, the VS Code launch t
 
 After deploying, check the menu and room calendar, sign in as a guest and as an admin, and verify a test booking from the deployed URL.
 
+## Railway deployment
+
+Connect the `main` branch of this repository as a Railway service with the repository root as its source. The Docker build serves the website and Express API from the same HTTPS domain. Railway checks `/api/health` before routing traffic to the service.
+
+Add a private MySQL service in the same Railway environment. If its service name is `MySQL`, use these references in the web service:
+
+| Variable | Value |
+| --- | --- |
+| `DB_HOST` | `${{MySQL.MYSQLHOST}}` |
+| `DB_PORT` | `${{MySQL.MYSQLPORT}}` |
+| `DB_USER` | `${{MySQL.MYSQLUSER}}` |
+| `DB_PASSWORD` | `${{MySQL.MYSQLPASSWORD}}` |
+| `DB_NAME` | `${{MySQL.MYSQLDATABASE}}` |
+
+Migrate the existing hotel database before directing production bookings to Railway. A fresh database gets the schema and default menu automatically. Existing room inventory, reservations, keys, reviews, and orders require a database migration.
+
+Generate an HTTPS domain for the web service and authorize it in Firebase Authentication. If keeping the Netlify site as the public address, change the `/api/*` rewrite in `public/_redirects` to the Railway host after verifying the migrated database and booking workflow. For a cross-origin frontend using `VITE_API_BASE_URL`, set `CORS_ORIGINS` on Railway to its HTTPS origin.
+
 ## Signup verification codes
 
 To send six-digit signup codes, configure `GMAIL_USER` and `GMAIL_APP_PASSWORD` on the Express host. Set `GOOGLE_APPLICATION_CREDENTIALS` to the path of a service-account JSON file for the same project as `FIREBASE_PROJECT_ID`. The service account needs the `firebaseauth.users.sendEmail` permission to generate a Firebase email-verification action. Keep the JSON outside the repository and web root.

@@ -1,0 +1,16 @@
+*
+!Dockerfile
+!package.json
+!package-lock.json
+!index.html
+!vite.config.js
+!public/
+!public/**
+!src/
+!src/**
+!backend/
+!backend/*.js
+!backend/*.json
+!backend/schema.sql
+**/*.lnk
+**/.env*
