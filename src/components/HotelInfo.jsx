@@ -173,8 +173,7 @@ const hotelStyles = `
 .bb-menu-add:hover { background: #e6c680; transform: translateY(-1px); }
 .bb-tray {
   position: fixed;
-  left: calc(16px + env(safe-area-inset-left, 0px));
-  bottom: 24px;
+  right: calc(16px + env(safe-area-inset-right, 0px));
   z-index: 1500;
   background: #10292a;
   color: #d8b46a;

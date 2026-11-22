@@ -956,8 +956,9 @@ body:has(.guest-account-dialog[open], .hotel-reservation, .hotel-receipt) { over
 }
 .guest-profile-button { display: inline-flex; align-items: center; min-height: 42px; border-radius: 999px !important; }
 .guest-site-shell :is(.guest-mobile-navigation, .guest-desktop-navigation) { display: none; }
-.guest-site-shell .bb-tray { bottom: calc(18px + env(safe-area-inset-bottom, 0px)); }
+.guest-site-shell .bb-tray { top: calc(112px + env(safe-area-inset-top, 0px)); }
 @media (max-width: 900px) {
+  .guest-site-shell .bb-tray { top: calc(132px + env(safe-area-inset-top, 0px)); padding: 9px 14px; }
   .guest-site-shell .hotel-navigation {
     flex-wrap: wrap;
     gap: 6px;
@@ -1008,7 +1009,6 @@ body:has(.guest-account-dialog[open], .hotel-reservation, .hotel-receipt) { over
   .guest-site-shell .guest-desktop-navigation { display: flex; align-items: center; gap: 4px; }
   .guest-desktop-navigation a { color: #f3ead7; text-decoration: none; white-space: nowrap; }
   .guest-desktop-navigation .hotel-booking-link { color: #10292a; background: #d8b46a; border: 0; font-weight: 700; white-space: nowrap; }
-  .guest-site-shell .bb-tray { bottom: 18px; }
 }
 
 .admin-calendar-bookings article > .calendar-booking-identity { justify-content: flex-start; gap: 7px; }
