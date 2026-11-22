@@ -1,7 +1,7 @@
 const pool = require("./db");
 
-const firebaseKey = process.env.FIREBASE_WEB_API_KEY || "AIzaSyCzydINVn-Gio9P13K4vsYEBAljbiiRLeg";
-const project = process.env.FIREBASE_PROJECT_ID || "hotel-reservation-d7595";
+const firebaseKey = process.env.FIREBASE_WEB_API_KEY || "AIzaSyAvLYLd3Q6FeAHhE-Xw6WO1hPOdfXgREYA";
+const project = process.env.FIREBASE_PROJECT_ID || "hotel-reservation-f1a6e";
 
 async function account(req, res, next) {
   const token = req.get("authorization")?.match(/^Bearer (\S+)$/i)?.[1];
