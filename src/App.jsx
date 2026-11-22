@@ -11,7 +11,6 @@ import {
 } from 'firebase/auth'
 import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore'
 import Display from './components/AdminDashboard.jsx'
-import LoginModal from "./components/LoginModal.jsx";
 import HotelInfo from './components/HotelInfo.jsx'
 import { auth, db, googleProvider } from './Firebase.js'
 
@@ -181,23 +180,34 @@ export default function App() {
     await signOut(auth)
   }
 
-  if (loading) {
-    return (
-      <div className="min-vh-100 d-flex align-items-center justify-content-center bg-light">
-        <div className="text-center">
-          <div className="spinner-border text-warning mb-3" role="status" />
-          <div className="fw-semibold">Loading...</div>
-        </div>
+  if (user && verified && !loading && profile?.role === 'admin') {
+    return <Display currentUser={profile} onLogout={handleLogout} />
+  }
+
+  const verifying = Boolean(user && !verified);
+  const loadingProfile = Boolean(user && verified && loading);
+  const profileUnavailable = Boolean(user && verified && !loading && !profile);
+
+  return (
+    <>
+      <div hidden={verifying || loadingProfile || profileUnavailable}>
+        <HotelInfo
+          user={user && verified && !loading ? profile : null}
+          onLogin={handleLogin}
+          onGoogleLogin={handleGoogleLogin}
+          onSignup={handleSignup}
+          authError={authError}
+          onSaveProfile={handleSaveProfile}
+          onLogout={handleLogout}
+        />
       </div>
-    )
-  }
-
-  if (!user) {
-    return <LoginModal onLogin={handleLogin} onGoogleLogin={handleGoogleLogin} onSignup={handleSignup} authError={authError} />
-  }
-
-  if (!verified) {
-    return (
+      {loadingProfile && (
+        <div className="min-vh-100 d-flex align-items-center justify-content-center bg-light" role="status">
+          Loading your account…
+        </div>
+      )}
+      {profileUnavailable && <p role="alert">Unable to load your account. <button type="button" onClick={handleLogout}>Sign out</button></p>}
+      {verifying && (
       <main className="verification-gate">
         <section className="hotel-glass" aria-labelledby="verify-title">
           <h1 id="verify-title">Verify your email</h1>
@@ -222,24 +232,7 @@ export default function App() {
           </form>
         </section>
       </main>
-    )
-  }
-
-  if (!profile) return <p role="alert">Unable to load your account. <button type="button" onClick={handleLogout}>Sign out</button></p>
-
-  if (user && profile && profile.role === 'admin') {
-    return <Display currentUser={profile} onLogout={handleLogout} />
-  }
-
-  return (
-    <HotelInfo
-      user={user && profile ? profile : null}
-      onLogin={handleLogin}
-      onGoogleLogin={handleGoogleLogin}
-      onSignup={handleSignup}
-      authError={authError}
-      onSaveProfile={handleSaveProfile}
-      onLogout={handleLogout}
-    />
+      )}
+    </>
   )
 }

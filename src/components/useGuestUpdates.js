@@ -12,18 +12,21 @@ function alertKeys(kind, records) {
   });
 }
 
+function readSeen(storageKey) {
+  if (!storageKey) return [];
+  try {
+    const stored = JSON.parse(localStorage.getItem(storageKey));
+    return Array.isArray(stored) ? stored : [];
+  } catch {
+    return [];
+  }
+}
+
 export default function useGuestUpdates(api, user) {
   const storageKey = user ? "hytech.guest.updates." + user.uid : null;
-  const [seen, setSeen] = useState(() => {
-    if (!storageKey) return [];
-    try {
-      const stored = JSON.parse(localStorage.getItem(storageKey));
-      return Array.isArray(stored) ? stored : [];
-    } catch {
-      return [];
-    }
-  });
-  const [keys, setKeys] = useState({ reservations: [], orders: [] });
+  const [seenState, setSeen] = useState(() => ({ storageKey, values: readSeen(storageKey) }));
+  const [updates, setUpdates] = useState(null);
+  const seen = seenState.storageKey === storageKey ? seenState.values : readSeen(storageKey);
 
   useEffect(() => {
     if (!user?.email) return;
@@ -34,8 +37,9 @@ export default function useGuestUpdates(api, user) {
       const results = await Promise.allSettled(kinds.map((kind) =>
         accountFetch(api + "/" + kind + query, { signal: controller.signal }).then(readJson)));
       if (!controller.signal.aborted) {
-        setKeys((previous) => {
-          const current = { ...previous };
+        setUpdates((previous) => {
+          const current = previous?.storageKey === storageKey
+            ? { ...previous } : { storageKey, reservations: [], orders: [] };
           results.forEach((result, index) => {
             if (result.status === "fulfilled" && Array.isArray(result.value)) current[kinds[index]] = alertKeys(kinds[index], result.value);
           });
@@ -52,20 +56,22 @@ export default function useGuestUpdates(api, user) {
     if (!storageKey) return;
     const viewed = alertKeys(kind, records);
     setSeen((previous) => {
-      const next = [...new Set([...previous, ...viewed])];
-      if (next.length === previous.length && next.every((key, index) => key === previous[index])) return previous;
-      return next;
+      const current = previous.storageKey === storageKey ? previous.values : readSeen(storageKey);
+      const next = [...new Set([...current, ...viewed])];
+      if (previous.storageKey === storageKey && next.length === current.length) return previous;
+      return { storageKey, values: next };
     });
   }, [storageKey]);
 
   useEffect(() => {
-    if (!storageKey) return;
-    try { localStorage.setItem(storageKey, JSON.stringify(seen)); } catch {}
-  }, [storageKey, seen]);
+    if (!storageKey || seenState.storageKey !== storageKey) return;
+    try { localStorage.setItem(storageKey, JSON.stringify(seenState.values)); } catch {}
+  }, [storageKey, seenState]);
 
+  const current = storageKey && updates?.storageKey === storageKey ? updates : null;
   return {
-    reservations: keys.reservations.some((key) => !seen.includes(key)),
-    orders: keys.orders.some((key) => !seen.includes(key)),
+    reservations: Boolean(current?.reservations.some((key) => !seen.includes(key))),
+    orders: Boolean(current?.orders.some((key) => !seen.includes(key))),
     markViewed,
   };
 }
