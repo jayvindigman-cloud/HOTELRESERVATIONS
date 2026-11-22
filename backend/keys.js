@@ -1,7 +1,12 @@
+const { createHash } = require("node:crypto");
 const express = require("express");
 const pool = require("./db");
 
 async function initializeKeys() {
+  await pool.query(`CREATE TABLE IF NOT EXISTS key_room_units (
+    room_number VARCHAR(60) PRIMARY KEY,
+    room_type_id INT NOT NULL
+  ) ENGINE=InnoDB`);
   await pool.query(`CREATE TABLE IF NOT EXISTS physical_keys (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     key_tag VARCHAR(60) NOT NULL UNIQUE,
@@ -24,21 +29,64 @@ async function initializeKeys() {
   ) ENGINE=InnoDB`);
 }
 
+async function ensureRoomKey(connection, value) {
+  const number = String(value || "").trim();
+  if (!number) return;
+  const [[state]] = await connection.query(
+    "SELECT EXISTS(SELECT 1 FROM physical_keys WHERE BINARY room_number=BINARY ?) " +
+    "OR EXISTS(SELECT 1 FROM physical_key_events WHERE BINARY room_number=BINARY ?) AS alreadyRegistered",
+    [number, number]
+  );
+  if (state.alreadyRegistered) return;
+
+  const suffix = createHash("sha256").update(number).digest("hex").slice(0, 8).toUpperCase();
+  const tag = "KEY-" + Array.from(number).slice(0, 47).join("") + "-" + suffix;
+  let result;
+  try {
+    [result] = await connection.query("INSERT INTO physical_keys (key_tag,room_number) VALUES (?,?)", [tag, number]);
+  } catch (error) {
+    if (error.code === "ER_DUP_ENTRY") return;
+    throw error;
+  }
+  await connection.query("INSERT INTO physical_key_events (key_id,key_tag,room_number,action) VALUES (?,?,?,'Auto registered')",
+    [result.insertId, tag, number]);
+}
+
+async function backfillRoomKeys() {
+  const [bookings] = await pool.query("SELECT DISTINCT BINARY room_number AS room_number FROM reservations WHERE room_number IS NOT NULL");
+  const rooms = new Set(bookings.map((booking) => String(booking.room_number).trim()).filter(Boolean));
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    for (const room of rooms) await ensureRoomKey(connection, room);
+    await connection.commit();
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
+
 const router = express.Router();
 const route = (fn) => (req, res, next) => fn(req, res).catch(next);
 
 router.get("/", route(async (req, res) => {
   const [keys] = await pool.query(`SELECT k.id, k.key_tag AS keyTag, k.room_number AS roomNumber,
+    t.name AS roomType,
     k.status, k.holder, k.booking_code AS bookingCode, k.issued_at AS issuedAt,
     r.check_in AS checkIn, COALESCE(r.actual_check_out,r.check_out) AS checkOut,
     CASE WHEN k.status IN ('Assigned','Issued') AND (r.id IS NULL OR r.status <> 'Confirmed'
       OR BINARY TRIM(COALESCE(r.room_number,'')) <> BINARY k.room_number
       OR COALESCE(r.actual_check_out,r.check_out) <= DATE(UTC_TIMESTAMP() + INTERVAL 8 HOUR)) THEN 1 ELSE 0 END AS needsAttention
     FROM physical_keys k LEFT JOIN reservations r ON BINARY r.reservation_code = BINARY k.booking_code
+    LEFT JOIN key_room_units u ON BINARY u.room_number = BINARY k.room_number
+    LEFT JOIN room_types t ON t.id = u.room_type_id
     ORDER BY k.room_number,k.key_tag`);
-  const [history] = await pool.query(`SELECT id, key_tag AS keyTag, room_number AS roomNumber,
-    action, holder, booking_code AS bookingCode, notes, created_at AS createdAt
-    FROM physical_key_events ORDER BY id DESC LIMIT 200`);
+  const [history] = await pool.query(`SELECT e.id, e.key_tag AS keyTag, e.room_number AS roomNumber,
+    e.action, e.holder, e.booking_code AS bookingCode, e.notes, e.created_at AS createdAt, t.name AS roomType
+    FROM physical_key_events e LEFT JOIN key_room_units u ON BINARY u.room_number = BINARY e.room_number
+    LEFT JOIN room_types t ON t.id = u.room_type_id ORDER BY e.id DESC LIMIT 200`);
   res.json({ keys, history });
 }));
 
@@ -118,4 +166,4 @@ router.use((error, req, res, next) => {
   res.status(500).json({ message: "Unable to save or load keys. Please try again." });
 });
 
-module.exports = { router, initializeKeys };
+module.exports = { router, initializeKeys, ensureRoomKey, backfillRoomKeys };

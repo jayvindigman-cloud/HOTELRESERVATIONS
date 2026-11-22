@@ -7,6 +7,8 @@ export default function LoginModal({ onLogin, onGoogleLogin, onSignup, authError
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmation, setShowConfirmation] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -113,14 +115,16 @@ export default function LoginModal({ onLogin, onGoogleLogin, onSignup, authError
               </div>
 
               <div className="mb-3">
-                <label className="form-label fw-semibold">Password</label>
-                <input type="password" className="form-control" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} placeholder="••••••••" />
+                <PasswordField id="login-password" label="Password" value={password} onChange={setPassword}
+                  visible={showPassword} onToggle={() => setShowPassword((visible) => !visible)}
+                  autoComplete={mode === "signup" ? "new-password" : "current-password"} />
               </div>
 
               {mode === 'signup' && (
                 <div className="mb-3">
-                  <label className="form-label fw-semibold">Confirm Password</label>
-                  <input type="password" className="form-control" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required minLength={6} placeholder="••••••••" />
+                  <PasswordField id="login-password-confirmation" label="Confirm Password" value={confirmPassword}
+                    onChange={setConfirmPassword} visible={showConfirmation}
+                    onToggle={() => setShowConfirmation((visible) => !visible)} autoComplete="new-password" />
                 </div>
               )}
 
@@ -129,10 +133,10 @@ export default function LoginModal({ onLogin, onGoogleLogin, onSignup, authError
                 style={{ backgroundColor: '#10292a', borderColor: '#10292a', color: '#d8b46a' }}
                 disabled={loading}
               >
-                {loading ? 'Please wait...' : mode === 'login' ? 'Sign In' : 'Create Customer Account'}
+                {loading ? 'Please wait...' : mode === 'login' ? 'Sign In' : 'Create Account'}
               </button>
             </form>
-            {mode === "login" && <button type="button" className="btn btn-link mt-2" onClick={() => { setMode("reset"); setError(""); setPassword(""); setConfirmPassword("") }}>Forgot password?</button>}
+            {mode === "login" && <button type="button" className="btn btn-link mt-2" onClick={() => { setMode("reset"); setError(""); setPassword(""); setConfirmPassword(""); setShowPassword(false); setShowConfirmation(false) }}>Forgot password?</button>}
 
             <div className="d-flex align-items-center gap-2 my-3">
               <hr className="flex-grow-1" /><span className="small text-muted">OR</span><hr className="flex-grow-1" />
@@ -144,18 +148,37 @@ export default function LoginModal({ onLogin, onGoogleLogin, onSignup, authError
 
             <div className="text-center mt-4 small">
               {mode === 'login' ? "Don't have an account?" : 'Already have an account?'}{' '}
-              <button type="button" className="btn btn-link p-0 text-decoration-none fw-semibold" style={{ color: '#9a7430' }} onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError('') }}>
+              <button type="button" className="btn btn-link p-0 text-decoration-none fw-semibold" style={{ color: '#9a7430' }} onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError(''); setShowPassword(false); setShowConfirmation(false) }}>
                 {mode === 'login' ? 'Create one' : 'Sign in'}
               </button>
             </div>
 
-            <div className="text-center text-muted small mt-3">New accounts are created as customer accounts.</div>
             </>}
           </div>
         </div>
       </div>
     </div>
   )
+}
+
+function PasswordField({ id, label, value, onChange, visible, onToggle, autoComplete }) {
+  return <>
+    <label htmlFor={id} className="form-label fw-semibold">{label}</label>
+    <div className="login-password-field">
+      <input id={id} type={visible ? "text" : "password"} className="form-control" value={value}
+        onChange={(event) => onChange(event.target.value)} autoComplete={autoComplete}
+        required minLength={6} />
+      <button type="button" className="hotel-action secondary" aria-controls={id}
+        aria-label={(visible ? "Hide " : "Show ") + label.toLowerCase()} onClick={onToggle}>
+        <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6S2 12 2 12Z" />
+          <circle cx="12" cy="12" r="2.5" />
+          {visible && <path d="m3 3 18 18" />}
+        </svg>
+      </button>
+    </div>
+  </>;
 }
 
 function getFirebaseMessage(error) {

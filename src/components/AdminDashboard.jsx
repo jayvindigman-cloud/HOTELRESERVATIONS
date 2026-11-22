@@ -214,7 +214,7 @@ export default function AdminDashboard({ onLogout, currentUser }) {
     await readJson(await accountFetch(API + "/reservations/" + (item.dbId || item.id) + "/status", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status, roomNumber, expectedStatus: "Pending" }),
+      body: JSON.stringify({ status, roomNumber, expectedStatus: "Pending", requireAvailableKey: status === "Confirmed" }),
     }));
     setReservations((previous) => previous.map((record) =>
       record.id === item.id ? { ...record, status, roomNumber: roomNumber || record.roomNumber } : record));
@@ -308,6 +308,12 @@ export default function AdminDashboard({ onLogout, currentUser }) {
 
   const totalPending = currentStays.filter((r) => r.status === "Pending").length;
   const activeRooms = rooms.filter((r) => r.is_active);
+  const bookingRoomPhotos = new Map(roomDescriptions.map((room) => [room.name, room.image]));
+  for (const room of rooms) {
+    const catalogPhoto = roomDescriptions.find((entry) => entry.name.toLowerCase().replaceAll(" ", "-") === room.slug)?.image;
+    const photo = room.image || catalogPhoto;
+    if (photo) bookingRoomPhotos.set(room.name, photo);
+  }
   const roomTypesCount = Object.fromEntries(activeRooms.map((room) => [room.name, room.total_units]));
   const totalRoomUnits = Object.values(roomTypesCount).reduce((sum, n) => sum + Number(n), 0);
   const availableRoomsCount = Math.max(0, totalRoomUnits - totalBooked);
@@ -398,8 +404,8 @@ export default function AdminDashboard({ onLogout, currentUser }) {
                 aria-label={hasAlert ? item.label + ", unread notifications" : item.label}
                 onClick={() => {
                   setPressedIcon((previous) => ({ item: item.id, count: (previous?.count || 0) + 1 }));
-                  if (item.id === "Bookings" || item.id === "Calendar") notifications.current?.markKindRead("reservation");
-                  if (item.id === "Food Orders") notifications.current?.markKindRead("order");
+                  if (item.id === "Food Orders") notifications.current?.acknowledgeBadges("order");
+                  if (item.id === "Bookings" || item.id === "Calendar") notifications.current?.acknowledgeBadges("reservation");
                   if (item.id === "Bookings") openBookingList();
                   else {
                     setFoodOrderTarget(null);
@@ -527,7 +533,7 @@ export default function AdminDashboard({ onLogout, currentUser }) {
           </div>
 
           <div className="admin-heading-tools">
-          {currentUser && <AdminNotifications ref={notifications} key={currentUser.uid} api={API} userId={currentUser.uid || currentUser.email} onUnreadChange={setUnreadAlerts}
+          {currentUser && <AdminNotifications ref={notifications} key={currentUser.uid} api={API} userId={currentUser.uid || currentUser.email} onBadgeChange={setUnreadAlerts}
             onOpen={(item) => {
               if (item.kind === "reservation") {
                 openBookingList("All", item.code);
@@ -540,7 +546,7 @@ export default function AdminDashboard({ onLogout, currentUser }) {
           </div>
         </div>
 
-        <div className="hotel-admin-content" style={{ flex: 1 }}>
+        <div key={activeTab} className="hotel-admin-content" style={{ flex: 1 }}>
           {activeTab === "Dashboard" && (
             <div className="hotel-admin-overview"
               style={{
@@ -744,7 +750,7 @@ export default function AdminDashboard({ onLogout, currentUser }) {
           )}
 
           {activeTab === "Calendar" && (
-            <AdminCalendar reservations={reservations} today={today} onDecision={decideCalendarReservation} onEarlyCheckout={handleEarlyCheckout} onOpenBooking={(id) => openBookingList("All", id)} />
+            <AdminCalendar reservations={reservations} rooms={rooms} today={today} onDecision={decideCalendarReservation} onEarlyCheckout={handleEarlyCheckout} onOpenBooking={(id) => openBookingList("All", id)} />
           )}
 
           {activeTab === "Bookings" && (
@@ -954,7 +960,10 @@ export default function AdminDashboard({ onLogout, currentUser }) {
                               )}
                             </td>
                             <td style={{ padding: "14px 16px" }}>
-                              {res.roomType}
+                              <div className="admin-booking-room">
+                                {bookingRoomPhotos.has(res.roomType) && <img src={bookingRoomPhotos.get(res.roomType)} alt="" loading="lazy" />}
+                                <span>{res.roomType}</span>
+                              </div>
                             </td>
                             <td style={{ padding: "14px 16px", fontWeight: "700", color: "#2f4f4f" }}>
                               {res.roomNumber || "Not assigned"}
@@ -1090,7 +1099,7 @@ export default function AdminDashboard({ onLogout, currentUser }) {
           {activeTab === "Reviews" && <AdminReviews api={API} rooms={rooms} />}
 
           {activeTab === "Rooms" && <AdminRoomsTab rooms={rooms} onSaved={loadRooms} />}
-          {activeTab === "Key Management" && <AdminKeysTab reservations={reservations} />}
+          {activeTab === "Key Management" && <AdminKeysTab reservations={reservations} roomTypes={rooms} />}
 
           {activeTab === "Discounts" && <AdminVouchersTab />}
 
@@ -2081,13 +2090,6 @@ function AdminVouchersTab() {
 
 const ORDER_STATUSES = ["Pending", "Preparing", "Served", "Cancelled"];
 
-const orderTone = (status) => {
-  if (status === "Served") return "#2e7d32";
-  if (status === "Cancelled") return "#b22222";
-  if (status === "Preparing") return "#1a4f8b";
-  return "#d97706";
-};
-
 function AdminOrdersTab({ selectedId, onClearSelection }) {
   const [view, setView] = useState("orders");
   const [orders, setOrders] = useState([]);
@@ -2154,62 +2156,41 @@ function AdminOrdersTab({ selectedId, onClearSelection }) {
 
       {history && <FoodOrderReport orders={orders} />}
       {selectedId != null && <button type="button" className="hotel-action secondary" onClick={onClearSelection}>Show all orders</button>}
-      <div className="admin-table-scroll" role="region" aria-label="Food orders" tabIndex={0}>
-      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.88rem" }}>
-        <thead>
-          <tr style={{ backgroundColor: "#2f4f4f", color: "white", textAlign: "left" }}>
-            <th style={{ ...adTh, borderRadius: "6px 0 0 6px" }}>Order</th>
-            <th style={adTh}>Guest</th>
-            <th style={adTh}>Items</th>
-            <th style={adTh}>Deliver to</th>
-            <th style={adTh}>Total</th>
-            <th style={{ ...adTh, borderRadius: "0 6px 6px 0" }}>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {shownOrders.length === 0 ? (
-            <tr>
-              <td colSpan="6" style={{ textAlign: "center", padding: "28px", color: "#888" }}>
-                {history ? "No closed food orders yet." : "No incoming food orders."}
-              </td>
-            </tr>
-          ) : (
-            shownOrders.map((o) => (
-              <tr key={o.id} style={{ borderBottom: "1px solid #f2f5f8", verticalAlign: "top" }}>
-                <td style={{ ...adTh, fontWeight: "700", color: "#2f4f4f" }}>{o.code}{history && <div><small>{foodOrderHistoryDate(o)}</small></div>}</td>
-                <td style={adTh}>
-                  <div style={{ fontWeight: "600" }}>{o.guestName}</div>
-                  <div style={{ fontSize: "0.8rem", color: "#777" }}>{o.phone}</div>
-                </td>
-                <td style={adTh}>
-                  {o.items.map((i, index) => {
-                    const photo = i.image || foodItems.find((item) => item.title === i.title)?.image;
-                    return <div key={index} className="admin-food-line">
-                      {photo && <img src={photo} alt="" loading="lazy" />}
-                      <span>{i.qty} {"\u00d7"} {i.title}</span>
-                    </div>;
-                  })}
-                  {o.notes && <div style={{ fontSize: "0.8rem", color: "#b45309", marginTop: "4px" }}>Request: {o.notes}</div>}
-                </td>
-                <td style={adTh}>{o.roomNumber || "Not specified"}</td>
-                <td style={{ ...adTh, fontWeight: "700", color: "#b22222" }}>{peso(o.totalAmount)}</td>
-                <td style={adTh}>
-                  {history ? <strong style={{ color: orderTone(o.status) }}>{o.status}</strong> : <select
-                    value={o.status}
-                    onChange={(e) => changeStatus(o, e.target.value)}
-                    style={{ padding: "6px 10px", borderRadius: "4px", fontWeight: "600", fontSize: "0.82rem", border: "1px solid #dcdfe4", backgroundColor: "#fff", color: orderTone(o.status) }}
-                  >
-                    {ORDER_STATUSES.map((s) => (
-                      <option key={s} value={s}>{s}</option>
-                    ))}
-                  </select>}
-                </td>
-              </tr>
-            ))
-          )}
-        </tbody>
-      </table>
-      </div>
+      {shownOrders.length === 0 ? (
+        <p className="admin-order-empty">{history ? "No closed food orders yet." : "No incoming food orders."}</p>
+      ) : (
+        <div className="admin-order-grid">
+          {shownOrders.map((order) => (
+            <article className="admin-order-card" key={order.id}>
+              <header>
+                <div><h4>{order.code}</h4>{history && <small>{foodOrderHistoryDate(order)}</small>}</div>
+                <strong className="admin-order-status" data-status={order.status}>{order.status}</strong>
+              </header>
+              <dl>
+                <div><dt>Guest</dt><dd>{order.guestName}{order.phone && <small>{order.phone}</small>}</dd></div>
+                <div><dt>Deliver to</dt><dd>{order.roomNumber || "Not specified"}</dd></div>
+              </dl>
+              <ul>
+                {order.items.map((item, index) => {
+                  const photo = item.image || foodItems.find((food) => food.title === item.title)?.image;
+                  return <li key={index} className="admin-food-line">
+                    {photo && <img src={photo} alt="" loading="lazy" />}
+                    <span>{item.qty} ? {item.title}</span>
+                  </li>;
+                })}
+              </ul>
+              {order.notes && <p className="admin-order-note">Request: {order.notes}</p>}
+              <footer>
+                <strong>{peso(order.totalAmount)}</strong>
+                {!history && <select aria-label={"Update status for " + order.code} value={order.status}
+                  onChange={(event) => changeStatus(order, event.target.value).catch((failure) => setError(failure.message))}>
+                  {ORDER_STATUSES.map((status) => <option key={status}>{status}</option>)}
+                </select>}
+              </footer>
+            </article>
+          ))}
+        </div>
+      )}
       </div>}
     </div>
   );

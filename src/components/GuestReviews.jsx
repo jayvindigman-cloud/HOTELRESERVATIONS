@@ -72,18 +72,20 @@ export default function GuestReviews({ api, user, onLogin, rooms = [], onOpenRoo
         <div className="guest-review-list" aria-label="Guest reviews">
           {shownReviews.map((review, index) => {
             const reviewedRoom = rooms.find((item) => item.name === review.roomType);
-            return <article key={index} className="hotel-glass">
+            return <article key={index} className="hotel-glass review-panel">
             {reviewedRoom?.image && onOpenRoom && (
               <button type="button" className="review-room-photo" aria-label={"View " + reviewedRoom.name + " details"} aria-haspopup="dialog"
                 onClick={() => onOpenRoom(reviewedRoom)}>
-                <img src={reviewedRoom.image} alt={reviewedRoom.name} loading="lazy" />
+                <img src={reviewedRoom.image} alt="" loading="lazy" width={100} height={76} />
                 <ReviewPhotoRating rating={review.hotelRating} />
-                <span>View room details</span>
+                <span className="review-photo-link">View room</span>
               </button>
             )}
+            <div className="review-panel-copy">
             <strong>{review.name}</strong>
             <div>{review.roomType ? review.roomType + " \u00b7 Room " : "Hotel "}{review.hotelRating}/5 {"\u00b7"} Service {review.serviceRating}/5</div>
             {review.comment && <p>{review.comment}</p>}
+            </div>
           </article>;
           })}
         </div>

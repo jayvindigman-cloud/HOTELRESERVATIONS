@@ -1,9 +1,10 @@
 ﻿import { useEffect, useRef, useState } from "react";
-import { accountFetch, formatPeso, readJson } from "../hotel-api";
+import { accountFetch, formatPeso, hotelToday, readJson } from "../hotel-api";
 
 const byLatest = (a, b) => Number(b.createdEpoch || 0) - Number(a.createdEpoch || 0) || Number(b.dbId) - Number(a.dbId);
 
 export default function AdminClients({ api, reservations, onPasswordHelp, onOpenBooking }) {
+  const [view, setView] = useState("directory");
   const [query, setQuery] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
@@ -20,14 +21,23 @@ export default function AdminClients({ api, reservations, onPasswordHelp, onOpen
     groups.get(key).push(booking);
   }
 
-  const clients = [...groups.entries()].filter(([, history]) => history.some((booking) => {
+  const today = hotelToday();
+  const isHistorical = (booking) => ["Cancelled", "Checked out"].includes(booking.status) ||
+    (booking.status === "Confirmed" && booking.checkOut && booking.checkOut <= today);
+  const matchesFilters = (booking) => {
     const lastDate = booking.actualCheckOut || booking.checkOut;
     return (!fromDate || lastDate > fromDate) &&
       (!toDate || (booking.checkIn && booking.checkIn <= toDate)) &&
       [booking.guestName, booking.email, booking.phone, booking.id, ...booking.guestNames]
         .some((value) => String(value || "").toLowerCase().includes(search));
-  }));
-  const history = selected ? groups.get(selected) || [] : [];
+  };
+  const clients = [...groups.entries()].flatMap(([key, bookings]) => {
+    if (view === "directory") return bookings.some(matchesFilters) ? [[key, bookings]] : [];
+    const past = bookings.filter((booking) => isHistorical(booking) && matchesFilters(booking));
+    return past.length ? [[key, past]] : [];
+  });
+  const allSelectedBookings = selected ? groups.get(selected) || [] : [];
+  const history = view === "history" ? allSelectedBookings.filter((booking) => isHistorical(booking) && matchesFilters(booking)) : allSelectedBookings;
   const latest = history[0];
   const email = latest?.email;
 
@@ -50,6 +60,10 @@ export default function AdminClients({ api, reservations, onPasswordHelp, onOpen
   return (
     <section className="hotel-glass admin-directory">
       <h3>Client Directory</h3>
+      <div className="admin-food-tabs" role="group" aria-label="Client views">
+        <button type="button" className="hotel-action secondary" aria-pressed={view === "directory"} onClick={() => setView("directory")}>Directory</button>
+        <button type="button" className="hotel-action secondary" aria-pressed={view === "history"} onClick={() => setView("history")}>History</button>
+      </div>
       <input type="search" aria-label="Search client directory" placeholder="Search guest, companion, email or booking"
         value={query} onChange={(event) => setQuery(event.target.value)} />
       <fieldset className="directory-date-filter">
@@ -58,14 +72,15 @@ export default function AdminClients({ api, reservations, onPasswordHelp, onOpen
         <label>Through<input type="date" min={fromDate || undefined} value={toDate} onChange={(event) => setToDate(event.target.value)} /></label>
         {(fromDate || toDate) && <button type="button" className="hotel-action secondary" onClick={() => { setFromDate(""); setToDate(""); }}>Clear dates</button>}
       </fieldset>
-      {!clients.length && <p>No clients match these filters.</p>}
+      {!clients.length && <p>{view === "history" ? "No past or cancelled bookings match these filters." : "No clients match these filters."}</p>}
       <ul className="directory-bookings">
         {clients.map(([key, bookings]) => {
           const booking = bookings[0];
           return <li className="hotel-glass" key={key}>
             <button type="button" className="directory-profile-button" aria-haspopup="dialog" onClick={() => open(key)}>
               <span><strong>{booking.guestName}</strong><small>{booking.email}</small></span>
-              <span><strong>Latest {booking.roomType}</strong><small>{booking.checkIn} to {booking.actualCheckOut || booking.checkOut}</small></span>
+              <span><strong>{view === "directory" ? "Latest " : ""}{booking.roomType}</strong>
+                <small>{booking.checkIn} to {booking.actualCheckOut || booking.checkOut}{view === "history" && " · " + booking.status}</small></span>
               <span>{bookings.length} {bookings.length === 1 ? "booking" : "bookings"}</span>
             </button>
           </li>;
@@ -83,9 +98,9 @@ export default function AdminClients({ api, reservations, onPasswordHelp, onOpen
             </div>
             {email && <button type="button" className="hotel-action secondary" onClick={() => { panel.current.close(); onPasswordHelp(email); }}>Help with password</button>}
             {error && <p role="status">{error}</p>}
-            <h4>Latest booking</h4>
+            <h4>{view === "history" ? "Most recent past booking" : "Latest booking"}</h4>
             <BookingDetails booking={latest} onOpen={() => { panel.current.close(); onOpenBooking(latest.id); }} />
-            <h4>Booking history ({history.length})</h4>
+            <h4>Earlier bookings ({history.length - 1})</h4>
             {history.length === 1 && <p>No earlier bookings.</p>}
             {history.slice(1).map((booking) => <BookingDetails key={booking.id} booking={booking} onOpen={() => { panel.current.close(); onOpenBooking(booking.id); }} />)}
             <h4>Food order history</h4>

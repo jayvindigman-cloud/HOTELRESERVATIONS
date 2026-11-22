@@ -4,8 +4,8 @@ const express = require("express");
 const cors = require("cors");
 const pool = require("./db");
 const { initializeMenu, registerMenu, menuOrderLines } = require("./menu");
-const { account, admin, privateList, initializeGuestFeatures, priceExtras, registerGuestFeatures } = require("./guest-features");
-const { router: keysRouter, initializeKeys } = require("./keys");
+const { account, admin, verifiedEmail, privateList, initializeGuestFeatures, priceExtras, registerGuestFeatures } = require("./guest-features");
+const { router: keysRouter, initializeKeys, ensureRoomKey, backfillRoomKeys } = require("./keys");
 
 const nodemailer = require("nodemailer");
 
@@ -469,6 +469,7 @@ app.put("/api/reservations/:id", account, admin, wrap(async (req, res) => {
       [guestName, email, phone, room.id, checkIn, checkOut, nights, Number(totalAmount) || 0,
        status || "Pending", cleanRoomNumber, req.params.id]
     );
+    if (result.affectedRows && cleanRoomNumber && status !== "Cancelled") await ensureRoomKey(connection, cleanRoomNumber);
     await connection.commit();
     if (!result.affectedRows) return res.status(404).json({ message: "Reservation not found." });
   } catch (error) {
@@ -489,8 +490,26 @@ async function hasConfirmedCapacity(connection, roomId, checkIn, checkOut, exclu
     .every((date) => stays.filter((stay) => stay.check_in <= date && stay.check_out > date).length < room.total_units);
 }
 
+app.get("/api/reservations/:id/available-key-rooms", account, admin, wrap(async (req, res) => {
+  const booking = await findReservation(req.params.id);
+  if (!booking) return res.status(404).json({ message: "Reservation not found." });
+  const [rooms] = await pool.query(
+    `SELECT u.room_number AS roomNumber, MIN(k.key_tag) AS keyTag
+       FROM key_room_units u JOIN physical_keys k ON k.room_number = u.room_number
+      WHERE u.room_type_id = ? AND k.status = 'Available'
+        AND NOT EXISTS (
+          SELECT 1 FROM reservations r
+           WHERE r.room_number = u.room_number AND r.status = 'Confirmed' AND r.id <> ?
+             AND r.check_in < ? AND COALESCE(r.actual_check_out, r.check_out) > ?
+        )
+      GROUP BY u.room_number ORDER BY u.room_number`,
+    [booking.roomId, booking.id, booking.checkOut, booking.checkIn]
+  );
+  res.json({ rooms });
+}));
+
 app.patch("/api/reservations/:id/status", account, admin, wrap(async (req, res) => {
-  const { status, roomNumber, expectedStatus } = req.body;
+  const { status, roomNumber, expectedStatus, requireAvailableKey } = req.body;
   if (!STATUSES.includes(status)) return res.status(400).json({ message: "Invalid status." });
 
   const current = await findReservation(req.params.id);
@@ -517,10 +536,22 @@ app.patch("/api/reservations/:id/status", account, admin, wrap(async (req, res) 
       await connection.rollback();
       return res.status(409).json({ message: "That room number is already assigned for the requested dates." });
     }
+    if (status === "Confirmed" && requireAvailableKey === true) {
+      const [keys] = await connection.query(
+        `SELECT k.id FROM physical_keys k JOIN key_room_units u ON u.room_number = k.room_number
+          WHERE u.room_type_id = ? AND u.room_number = ? AND k.status = 'Available' LIMIT 1 FOR UPDATE`,
+        [current.roomId, finalRoomNumber]
+      );
+      if (!keys.length) {
+        await connection.rollback();
+        return res.status(409).json({ message: "That room no longer has an available key. Choose another room." });
+      }
+    }
     const [updatedStatus] = await connection.query(
       "UPDATE reservations SET status = ?, room_number = ? WHERE id = ? AND status = ? AND room_type_id = ? AND check_in = ? AND check_out = ? AND actual_check_out IS NULL",
       [status, finalRoomNumber || null, current.id, current.status, current.roomId, current.checkIn, current.checkOut]
     );
+    if (updatedStatus.affectedRows && status === "Confirmed") await ensureRoomKey(connection, finalRoomNumber);
     await connection.commit();
     if (!updatedStatus.affectedRows) return res.status(409).json({ message: "The reservation changed. Refresh and try again." });
   } catch (error) {
@@ -559,17 +590,24 @@ app.patch("/api/reservations/:id/status", account, admin, wrap(async (req, res) 
   res.json({ message: "Status updated." });
 }));
 
-app.patch("/api/reservations/:id/early-checkout", account, admin, wrap(async (req, res) => {
+async function recordEarlyCheckout(req, res, guestEmail) {
+  const ownerClause = guestEmail === undefined ? "" : " AND LOWER(email) = ?";
+  const params = guestEmail === undefined ? [req.params.id] : [req.params.id, guestEmail];
   const [result] = await pool.query(
     "UPDATE reservations SET actual_check_out = DATE(UTC_TIMESTAMP() + INTERVAL 8 HOUR) " +
     "WHERE id = ? AND status = 'Confirmed' AND actual_check_out IS NULL " +
-    "AND check_in <= DATE(UTC_TIMESTAMP() + INTERVAL 8 HOUR) AND check_out > DATE(UTC_TIMESTAMP() + INTERVAL 8 HOUR)",
-    [req.params.id]
+    "AND check_in <= DATE(UTC_TIMESTAMP() + INTERVAL 8 HOUR) AND check_out > DATE(UTC_TIMESTAMP() + INTERVAL 8 HOUR)" + ownerClause,
+    params
   );
   if (!result.affectedRows) return res.status(409).json({ message: "Only an active confirmed stay can check out early." });
   const reservation = await findReservation(req.params.id);
   res.json({ message: "Early checkout recorded.", reservation });
-}));
+}
+
+app.patch("/api/reservations/:id/early-checkout", account, admin, wrap((req, res) =>
+  recordEarlyCheckout(req, res)));
+app.patch("/api/guest/reservations/:id/early-checkout", account, verifiedEmail, wrap((req, res) =>
+  recordEarlyCheckout(req, res, req.account.email.toLowerCase())));
 
 app.patch("/api/reservations/:id/payment", account, admin, wrap(async (req, res) => {
   const { paymentStatus } = req.body;
@@ -687,6 +725,7 @@ process.on("uncaughtException", (e) => console.error("Uncaught exception:", e));
 
 pool.query("SELECT 1")
   .then(() => initializeKeys())
+  .then(() => backfillRoomKeys())
   .then(() => initializeGuestFeatures())
   .then(() => initializeMenu())
   .then(() => {

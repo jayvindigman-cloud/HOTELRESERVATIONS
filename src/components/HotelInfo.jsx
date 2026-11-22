@@ -1,3 +1,4 @@
+import useGuestUpdates from "./useGuestUpdates";
 import { roomDescriptions } from "../data/hotelCatalog";
 import GuestAccount from "./GuestAccount";
 import GuestReviews from "./GuestReviews";
@@ -600,6 +601,42 @@ const emptyForm = {
   notes: "",
 };
 
+const desktopGuestLinks = [
+  ["home", "Home"], ["hotel", "The Hotel"], ["rooms", "Our Rooms"],
+  ["food", "Food & Drink"], ["reviews", "Reviews"], ["contact", "Contact"],
+];
+
+function scrollToGuestSection(hash) {
+  if (!desktopGuestLinks.some(([id]) => "#" + id === hash)) return false;
+  const section = document.getElementById(hash.slice(1));
+  if (!section) return false;
+  section.scrollIntoView({ block: "start" });
+  if (window.location.hash) {
+    window.history.replaceState(window.history.state, "", window.location.pathname + window.location.search);
+  }
+  return true;
+}
+
+function handleGuestNavigation(event) {
+  if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
+  const link = event.target.closest("a[href^='#']");
+  if (link && scrollToGuestSection(link.hash)) event.preventDefault();
+}
+
+function closeGuestMenu(event) {
+  event.currentTarget.closest("details")?.removeAttribute("open");
+}
+
+function GuestNavIcon({ name }) {
+  const paths = {
+    home: "m3 11 9-7 9 7M6 10v10h12V10m-8 10v-5h4v5",
+    rooms: "M3 18v-7m18 7v-7M3 16h18M5 15V8h14v7M8 11h8",
+    stays: "M5 5h14v15H5zM8 3v4m8-4v4M5 9h14m-10 4h6m-6 3h4",
+    more: "M4 6h16M4 12h16M4 18h16",
+  };
+  return <svg aria-hidden="true" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d={paths[name]} /></svg>;
+}
+
 export default function HotelInfo({ user, onLogin, onGoogleLogin, onSignup, authError, onLogout, onSaveProfile }) {
   const [detailsRoom, setDetailsRoom] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -614,7 +651,45 @@ export default function HotelInfo({ user, onLogin, onGoogleLogin, onSignup, auth
   const [menuError, setMenuError] = useState("");
   const [cartNotice, setCartNotice] = useState("");
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  useEffect(() => {
+    const followHash = () => scrollToGuestSection(window.location.hash);
+    followHash();
+    window.addEventListener("hashchange", followHash);
+    return () => window.removeEventListener("hashchange", followHash);
+  }, []);
+
+  const [desktopSection, setDesktopSection] = useState("home");
+  useEffect(() => {
+    const desktop = window.matchMedia("(min-width: 901px)");
+    const sections = desktopGuestLinks.map(([id]) => document.getElementById(id)).filter(Boolean);
+    let frame = null;
+    function update() {
+      frame = null;
+      if (!desktop.matches) return;
+      const threshold = Math.min(175, window.innerHeight * .28);
+      let current = sections[0];
+      for (const section of sections) {
+        if (section.getBoundingClientRect().top <= threshold) current = section;
+      }
+      if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 3) {
+        current = sections[sections.length - 1] || current;
+      }
+      if (current) setDesktopSection(current.id);
+    }
+    function schedule() {
+      if (desktop.matches && frame === null) frame = requestAnimationFrame(update);
+    }
+    update();
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule);
+    return () => {
+      window.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
+      if (frame !== null) cancelAnimationFrame(frame);
+    };
+  }, []);
+
+  const guestUpdates = useGuestUpdates(API, user);
   const [accountTab, setAccountTab] = useState(null);
   const [guestNames, setGuestNames] = useState({});
   const [bookingStep, setBookingStep] = useState(0);
@@ -650,13 +725,6 @@ export default function HotelInfo({ user, onLogin, onGoogleLogin, onSignup, auth
   const [voucherMsg, setVoucherMsg] = useState("");
   const [voucherBusy, setVoucherBusy] = useState(false);
 
-  const navLinkStyle = {
-    margin: "0 15px",
-    textDecoration: "none",
-    color: "#f3ead7",
-    fontWeight: "500",
-    transition: "color 0.3s ease",
-  };
 
 
 
@@ -695,10 +763,7 @@ export default function HotelInfo({ user, onLogin, onGoogleLogin, onSignup, auth
 
   const roomCategories = ["All", ...new Set(rooms.map((room) => room.category))];
 
-  const visibleRooms =
-    roomFilter === "All" ? rooms : rooms.filter((r) => r.category === roomFilter);
-
-
+  const visibleRooms = roomFilter === "All" ? rooms : rooms.filter((room) => room.category === roomFilter);
 
   const menuCategories = ["All", ...new Set(menu.map((item) => item.category))];
 
@@ -1024,7 +1089,7 @@ export default function HotelInfo({ user, onLogin, onGoogleLogin, onSignup, auth
 
 
   return (
-    <div className="guest-site-shell"
+    <div className="guest-site-shell" onClick={handleGuestNavigation}
       style={{
         fontFamily: "'Segoe UI', Roboto, sans-serif",
         color: "#333",
@@ -1037,7 +1102,7 @@ export default function HotelInfo({ user, onLogin, onGoogleLogin, onSignup, auth
       <style>{hotelStyles}</style>
       <div className="guest-moving-background" aria-hidden="true" />
 
-      <header className="hotel-navigation" data-menu-open={mobileMenuOpen}
+      <header className="hotel-navigation"
         style={{
           display: "flex",
           justifyContent: "space-between",
@@ -1053,57 +1118,40 @@ export default function HotelInfo({ user, onLogin, onGoogleLogin, onSignup, auth
           boxShadow: "0 2px 6px rgba(0, 0, 0, 0.1)",
         }}
       >
-        <a className="hotel-brand" href="#home" onClick={() => setMobileMenuOpen(false)}>
+        <a className="hotel-brand" href="#home">
           <span className="hotel-monogram" aria-hidden="true">H</span>
           <span>Hytech<small>Hotel &amp; Bistro</small></span>
         </a>
-        <button type="button" className="hotel-menu-toggle" aria-controls="hotel-navigation-links"
-          aria-expanded={mobileMenuOpen} onClick={() => setMobileMenuOpen((open) => !open)}>
-          {mobileMenuOpen ? "Close menu" : "Menu"}
-        </button>
-        <nav id="hotel-navigation-links" aria-label="Hotel navigation" style={{ display: "flex", alignItems: "center" }}
-          onClick={(event) => { if (event.target.closest("a, button")) setMobileMenuOpen(false); }}
-          onKeyDown={(event) => {
-            if (event.key === "Escape") {
-              setMobileMenuOpen(false);
-              event.currentTarget.previousElementSibling?.focus();
-            }
-          }}>
-          <a href="#home" style={navLinkStyle}>
-            Home
-          </a>
-          <a href="#hotel" style={navLinkStyle}>
-            The Hotel
-          </a>
-          <a href="#rooms" style={navLinkStyle}>
-            Our Rooms
-          </a>
-          <a href="#food" style={navLinkStyle}>
-            Food & Drink
-          </a>
-          <a href="#contact" style={navLinkStyle}>
-            Contact
-          </a>
-          <a href="#reviews" style={navLinkStyle}>Reviews</a>
-          <button className="hotel-booking-link"
-            onClick={() => handleOpenModal()}
-            style={{
-              backgroundColor: "#d8b46a",
-              color: "#10292a",
-              border: "none",
-              padding: "8px 18px",
-              borderRadius: "4px",
-              cursor: "pointer",
-              fontWeight: "bold",
-            }}
-          >
-            Booking
-          </button>
-          <button type="button" style={authButtonStyle} onClick={() => setAccountTab("profile")}>
-            {user?.photoURL && <img className="guest-nav-avatar" src={user.photoURL} alt="" />}Profile
-          </button>
+        <nav className="guest-desktop-navigation" aria-label="Hotel navigation">
+          {desktopGuestLinks.map(([id, label]) => (
+            <a key={id} href={"#" + id} aria-current={desktopSection === id ? "location" : undefined}>{label}</a>
+          ))}
+          <button type="button" className="hotel-booking-link" onClick={() => handleOpenModal()}>Booking</button>
         </nav>
+        <button type="button" className="guest-profile-button guest-alert-anchor" aria-label={guestUpdates.reservations || guestUpdates.orders ? "Profile, new updates" : "Profile"} style={authButtonStyle} onClick={() => setAccountTab("profile")}>
+          {user?.photoURL && <img className="guest-nav-avatar" src={user.photoURL} alt="" />}Profile
+          {(guestUpdates.reservations || guestUpdates.orders) && <span className="guest-update-dot" aria-hidden="true" />}
+        </button>
       </header>
+
+      <nav className="guest-bottom-navigation" aria-label="Hotel navigation">
+        <a href="#home"><GuestNavIcon name="home" />Home</a>
+        <a href="#rooms"><GuestNavIcon name="rooms" />Rooms</a>
+        <button type="button" className="guest-alert-anchor" aria-label={guestUpdates.reservations ? "My Stays, reservation confirmed" : "My Stays"} onClick={() => setAccountTab("reservations")}>
+          <GuestNavIcon name="stays" />My Stays
+          {guestUpdates.reservations && <span className="guest-update-dot" aria-hidden="true" />}
+        </button>
+        <details className="guest-nav-more">
+          <summary><GuestNavIcon name="more" />More</summary>
+          <div>
+            <a href="#hotel" onClick={closeGuestMenu}>The Hotel</a>
+            <a href="#food" onClick={closeGuestMenu}>Food &amp; Drink</a>
+            <a href="#reviews" onClick={closeGuestMenu}>Reviews</a>
+            <a href="#contact" onClick={closeGuestMenu}>Contact</a>
+            <button type="button" onClick={(event) => { closeGuestMenu(event); handleOpenModal(); }}>Book a room</button>
+          </div>
+        </details>
+      </nav>
 
       <section
         id="home" className="hotel-hero"
@@ -1265,6 +1313,7 @@ export default function HotelInfo({ user, onLogin, onGoogleLogin, onSignup, auth
             </button>
           ))}
         </div>
+
 
         <div
           style={{
@@ -1931,7 +1980,7 @@ export default function HotelInfo({ user, onLogin, onGoogleLogin, onSignup, auth
       )}
 
       {accountTab && !isLoginOpen && (
-        <GuestAccount api={API} user={user} menu={menu} rooms={[...rooms, ...roomDescriptions]} onLogin={handleOpenLogin} onLogout={onLogout}
+        <GuestAccount api={API} user={user} initialTab={accountTab} updates={guestUpdates} menu={menu} rooms={[...rooms, ...roomDescriptions]} onLogin={handleOpenLogin} onLogout={onLogout}
           onClose={() => setAccountTab(null)} onViewReceipt={handleViewReceipt} onSaveProfile={onSaveProfile} onBookAgain={bookAgain} onOrderAgain={orderAgain} />
       )}
 

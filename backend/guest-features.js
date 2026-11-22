@@ -1,4 +1,4 @@
-﻿const pool = require("./db");
+const pool = require("./db");
 
 const firebaseKey = process.env.FIREBASE_WEB_API_KEY || "AIzaSyCzydINVn-Gio9P13K4vsYEBAljbiiRLeg";
 const project = process.env.FIREBASE_PROJECT_ID || "hotel-reservation-d7595";
@@ -16,6 +16,7 @@ async function account(req, res, next) {
     if (response.status >= 500) throw new Error("Firebase unavailable");
     const user = response.ok && (await response.json()).users?.[0];
     if (!user?.email || user.disabled) return res.status(401).json({ message: "Please sign in again." });
+    if (!user.emailVerified) return res.status(403).json({ message: "Verify your email to continue." });
     req.account = user;
     return next();
   } catch {
@@ -272,4 +273,4 @@ function registerGuestFeatures(app, wrap) {
   }));
 }
 
-module.exports = { account, admin, privateList, initializeGuestFeatures, priceExtras, registerGuestFeatures };
+module.exports = { account, admin, verifiedEmail, privateList, initializeGuestFeatures, priceExtras, registerGuestFeatures };

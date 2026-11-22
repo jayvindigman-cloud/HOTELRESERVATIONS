@@ -10,17 +10,21 @@
 .key-filters, .key-card-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
 .key-filters input { flex: 1 1 215px; min-width: 0; }
 .key-management :is(input, select, textarea) { border: 1px solid #b7c7b9; border-radius: 9px; padding: 7px 9px; background: #fffc; color: inherit; }
-.key-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 285px), 1fr)); }
-.key-card { text-align: left; padding: 15px; }
+.key-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 215px), 1fr)); }
+.key-card { min-width: 0; text-align: left; padding: 10px; border-radius: 14px; overflow-wrap: anywhere; }
+.key-card > p { font-size: .83rem; line-height: 1.35; }
 .key-card[data-status="Assigned"] { background: linear-gradient(130deg, #fffaf0, #f2e5c2); }
-.key-card header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-.key-card h4 { margin: 0 0 4px; }
-.key-card-icon { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; border: 1px solid white; background: #fff7; }
-.key-state { padding: 3px 9px; border-radius: 999px; background: #e3eddf; font-size: .8rem; }
+.key-card header { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.key-card header > div { flex: 1; min-width: 0; }
+.key-card header p { font-size: .77rem; }
+.key-card h4 { margin: 0; font-size: .95rem; line-height: 1.2; }
+.key-card-icon { display: grid; place-items: center; width: 30px; height: 30px; flex: 0 0 30px; border-radius: 8px; border: 1px solid white; background: #fff7; }
+.key-state { padding: 2px 6px; white-space: nowrap; border-radius: 999px; background: #e3eddf; font-size: .8rem; }
 .key-card[data-status="Assigned"] .key-state { background: #f7e9be; color: #765211; }
 .key-card[data-status="Lost"] .key-state, .key-card[data-status="Maintenance"] .key-state { background: #f8e2da; color: #8b3227; }
-.key-card-actions { margin-top: 10px; }
-.key-card-actions button { padding: 5px 9px; font-size: .8rem; }
+.key-card-actions { margin-top: 7px; gap: 4px; }
+.key-card-actions button { min-height: 32px; padding: 4px 8px; font-size: .78rem; }
+@media (pointer: coarse) { .key-card-actions button { min-height: 40px; } }
 .key-history { padding: 12px; text-align: left; }
 .key-history summary { cursor: pointer; font-weight: 700; }
 .key-history ul { margin: 8px 0 0; padding-left: 18px; max-height: 220px; overflow: auto; }
@@ -31,6 +35,27 @@
 .key-dialog form, .key-dialog label { display: grid; gap: 6px; }
 .key-dialog form { margin-top: 12px; }
 .key-dialog small { color: #526859; }
+.key-dialog[data-action="Assign"] { width: min(350px, calc(100% - 24px)); border-radius: 12px; font-size: .85rem; }
+.key-dialog[data-action="Assign"] > div { padding: 12px; }
+.key-dialog[data-action="Assign"] h3 { margin: 0 0 4px; font-size: 1.05rem; }
+.key-dialog[data-action="Assign"] p { margin: 4px 0; overflow-wrap: anywhere; }
+.key-dialog[data-action="Assign"] :is(form, label) { gap: 4px; }
+.key-dialog[data-action="Assign"] form { margin-top: 8px; }
+.key-dialog[data-action="Assign"] :is(select, textarea) {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding: 5px 7px;
+  border: 1px solid #b9ccbd;
+  border-radius: 7px;
+  background: #fffdf8;
+  color: inherit;
+  font: inherit;
+}
+.key-dialog[data-action="Assign"] select { min-height: 36px; }
+@media (pointer: coarse) {
+  .key-dialog[data-action="Assign"] :is(select, button) { min-height: 44px; }
+}
 @media (max-width: 535px) { .key-hero { flex-wrap: wrap; } }
 
 .key-management .key-hero {
@@ -41,3 +66,98 @@
 .key-management .key-hero h3 { font-size: clamp(1.55rem, 3vw, 2.3rem); margin: 0 0 6px; }
 .key-management .key-hero p { color: #f1f7f0; font-size: 1rem; line-height: 1.45; }
 .key-management .key-add { border-color: #fff3; font-weight: 700; }
+
+.key-room-panels { display: grid; gap: 10px; }
+.key-room-panel { min-width: 0; padding: 9px 10px; border-radius: 14px; text-align: left; box-shadow: none; }
+.key-room-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.key-room-toggle { width: 100%; display: flex; align-items: center; gap: 6px; padding: 4px; border: 0; border-radius: 7px; background: transparent; color: inherit; text-align: left; cursor: pointer; }
+.key-room-toggle:focus-visible { outline: 2px solid #526b5d; outline-offset: 1px; }
+.key-room-label { min-width: 0; }
+.key-room-label :is(strong, small) { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.key-room-label strong { font-size: .95rem; }
+.key-room-label small { color: #526b5d; font-size: .76rem; }
+.key-room-toggle .key-room-identity { flex: 1; }
+.key-room-identity { display: flex; align-items: center; gap: 7px; min-width: 0; overflow-wrap: anywhere; }
+.key-room-photo { display: block; flex: none; width: 52px; height: 38px; object-fit: cover; border-radius: 7px; }
+.key-room-guests { display: grid; gap: 4px; margin: 7px 0; padding: 0; list-style: none; }
+.key-room-guests li { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px; padding: 6px; border: 1px solid #dce6db; border-radius: 8px; overflow-wrap: anywhere; font-size: .82rem; }
+.key-room-guests small { display: block; color: #526b5d; }
+.key-room-guests button.hotel-action { min-height: 36px; padding: 3px 7px; font-size: .78rem; }
+.key-management .hotel-action.key-assign {
+  min-height: 36px;
+  padding-inline: 10px;
+  background: #a52732;
+  border: 1px solid #87212a;
+  color: #fff;
+  font-weight: 700;
+}
+.key-management .hotel-action.key-assign:hover:not(:disabled) { background: #87212a; }
+.key-management .hotel-action.key-assign:focus-visible { outline: 2px solid #87212a; outline-offset: 2px; }
+@media (pointer: coarse) {
+  .key-management .hotel-action.key-assign { min-height: 44px; }
+}
+.key-room-heading p, .key-room-empty { color: #526b5d; font-size: .82rem; }
+.key-room-heading button { flex-shrink: 0; min-height: 36px; font-size: .8rem; }
+.key-room-panel .key-grid, .key-room-empty { margin-top: 7px; }
+
+.key-room-panels {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 245px), 1fr));
+  align-items: start;
+  gap: 8px;
+}
+.key-room-panels > p { grid-column: 1 / -1; }
+.key-room-panel {
+  box-sizing: border-box;
+  padding: 8px;
+  background: #f8fbf3b8;
+  border-color: #e0eadb;
+}
+.key-room-body { min-width: 0; padding: 5px 2px 0; }
+.key-room-panel[data-booked="true"] { background: #fce9e8; border-color: #e7b7b7; }
+.key-room-panel[data-booked="true"] .key-card { background: #fff5f4; border-color: #edcecc; }
+.key-room-panel[data-booked="true"] .key-room-guests li { border-color: #edcecc; }
+.key-room-booked { display: inline-block; padding: 2px 6px; border-radius: 999px; background: #f5d5d5; color: #842b35; font-size: .72rem; font-weight: 700; }
+.key-room-panel .key-grid { grid-template-columns: 1fr; gap: 5px; }
+.key-room-panel .key-card { padding: 7px; border-radius: 10px; box-shadow: none; }
+.key-room-panel .key-card header { margin-bottom: 3px; }
+.key-more-actions { margin-top: 4px; }
+.key-more-actions summary { cursor: pointer; color: #365a48; font-size: .78rem; min-height: 26px; }
+.key-more-actions .key-card-actions { margin-top: 1px; }
+.key-room-filter { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 12px; }
+.key-room-filter button {
+  display: flex; align-items: center; gap: 8px; min-height: 48px; max-width: 100%;
+  padding: 5px 10px; border: 1px solid #c2d3c6; border-radius: 12px;
+  background: #f8fbf3db; color: #21483e; text-align: left; cursor: pointer;
+}
+.key-room-filter button[aria-pressed="true"] { background: #21483e; color: #fff; border-color: #21483e; }
+.key-room-filter img, .key-room-filter button > svg { width: 42px; height: 34px; flex: none; }
+.key-room-filter img { object-fit: cover; border-radius: 6px; }
+.key-hero-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.key-print-sheet { display: none; }
+
+@media print {
+  body:has(> .key-print-sheet) > :not(.key-print-sheet) { display: none !important; }
+  body:has(> .key-print-sheet) { background: white !important; margin: 0; }
+  .key-print-sheet {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, 47mm);
+    align-items: stretch;
+    color: black;
+    background: white;
+  }
+  .key-print-label {
+    display: grid;
+    align-content: center;
+    justify-items: center;
+    gap: 1mm;
+    min-height: 23mm;
+    box-sizing: border-box;
+    padding: 2mm;
+    border: 0.3mm dashed #777;
+    break-inside: avoid;
+    text-align: center;
+    font: 9pt/1.2 Arial, sans-serif;
+    overflow-wrap: anywhere;
+  }
+  .key-print-label strong { font-size: 13pt; }
+}

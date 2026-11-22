@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import {
   createUserWithEmailAndPassword,
   onAuthStateChanged,
+  sendEmailVerification,
   signInWithEmailAndPassword,
   signInWithPopup,
   signOut,
@@ -10,6 +11,7 @@ import {
 } from 'firebase/auth'
 import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore'
 import Display from './components/AdminDashboard.jsx'
+import LoginModal from "./components/LoginModal.jsx";
 import HotelInfo from './components/HotelInfo.jsx'
 import { auth, db, googleProvider } from './Firebase.js'
 
@@ -17,84 +19,57 @@ export default function App() {
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [verified, setVerified] = useState(false)
+  const [verificationMessage, setVerificationMessage] = useState("")
+  const [verificationBusy, setVerificationBusy] = useState(false)
   const [authError, setAuthError] = useState('')
 
+  useEffect(() => onAuthStateChanged(auth, (current) => {
+    setProfile(null)
+    setUser(current)
+    setVerified(Boolean(current?.emailVerified))
+    setLoading(Boolean(current?.emailVerified))
+  }), [])
+
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      setLoading(true)
-      setAuthError('')
+    if (!user || !verified) return
+    let active = true
 
-      if (!firebaseUser) {
-        setUser(null)
-        setProfile(null)
-        setLoading(false)
-        return
-      }
-
+    async function loadProfile() {
       try {
-        const userRef = doc(db, 'users', firebaseUser.uid)
+        const userRef = doc(db, 'users', user.uid)
         const snapshot = await getDoc(userRef)
-        let data
+        if (!active) return
 
-        if (snapshot.exists()) {
-          data = snapshot.data()
-        } else {
-          const isGoogleUser = firebaseUser.providerData.some(
-            (provider) => provider.providerId === 'google.com'
-          )
-
-          if (isGoogleUser) {
-            data = {
-              uid: firebaseUser.uid,
-              name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Customer',
-              email: firebaseUser.email || '',
-              photoURL: firebaseUser.photoURL || '',
-              role: 'customer',
-              createdAt: serverTimestamp(),
-            }
-            await setDoc(userRef, data)
-          } else {
-            await signOut(auth)
-            setAuthError('Your account profile was not found. Please sign up again.')
-            setUser(null)
-            setProfile(null)
-            setLoading(false)
-            return
+        let data = snapshot.data()
+        if (!snapshot.exists()) {
+          data = {
+            uid: user.uid,
+            name: user.displayName || user.email?.split('@')[0] || 'Guest',
+            email: user.email || '',
+            photoURL: user.photoURL || '',
+            role: 'customer',
+            createdAt: serverTimestamp(),
           }
+          await setDoc(userRef, data)
         }
 
-        const normalizedRole = String(data.role || '').toLowerCase()
-
-        if (!['customer', 'admin'].includes(normalizedRole)) {
-          await signOut(auth)
-          setAuthError('Your account has no valid customer or admin role.')
-          setUser(null)
-          setProfile(null)
-          setLoading(false)
-          return
-        }
-
-        setUser(firebaseUser)
-        setProfile({
-          ...data,
-          uid: firebaseUser.uid,
-          email: firebaseUser.email || data.email || '',
-          name: data.name || firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Customer',
-          role: normalizedRole,
-        })
+        const role = String(data.role || '').toLowerCase()
+        if (!['customer', 'admin'].includes(role)) throw new Error('Invalid account role')
+        if (active) setProfile({ ...data, uid: user.uid, email: user.email || data.email || '', role })
       } catch (error) {
-        console.error('Authentication state error:', error)
+        if (!active) return
+        console.error('Unable to load the account profile:', error)
+        setAuthError('Unable to load your account. Sign in again to retry.')
         await signOut(auth).catch(() => {})
-        setUser(null)
-        setProfile(null)
-        setAuthError('Unable to load your account profile. Please try again.')
       } finally {
-        setLoading(false)
+        if (active) setLoading(false)
       }
-    })
+    }
 
-    return unsubscribe
-  }, [])
+    loadProfile()
+    return () => { active = false }
+  }, [user, verified])
 
   useEffect(() => {
     if (!user?.emailVerified || profile?.role !== "customer") return;
@@ -118,20 +93,51 @@ export default function App() {
 
   async function handleSignup({ name, email, password }) {
     setAuthError('')
-    const credential = await createUserWithEmailAndPassword(auth, email.trim(), password)
+    setVerificationMessage('')
+    setVerificationBusy(true)
+    try {
+      const { user: newUser } = await createUserWithEmailAndPassword(auth, email.trim(), password)
+      await updateProfile(newUser, { displayName: name.trim() }).catch(() => {})
+      await sendVerification(newUser)
+    } finally {
+      setVerificationBusy(false)
+    }
+  }
 
-    await updateProfile(credential.user, {
-      displayName: name.trim(),
-    })
+  async function sendVerification(current) {
+    try {
+      await sendEmailVerification(current)
+      setVerificationMessage('Verification email sent. Check your inbox and spam folder.')
+    } catch (error) {
+      setVerificationMessage(error.code === 'auth/too-many-requests'
+        ? 'Too many requests. Wait a few minutes before resending.'
+        : 'The verification email could not be sent. Please try resending it.')
+    }
+  }
 
-    await setDoc(doc(db, 'users', credential.user.uid), {
-      uid: credential.user.uid,
-      name: name.trim(),
-      email: credential.user.email || email.trim(),
-      photoURL: credential.user.photoURL || '',
-      role: 'customer',
-      createdAt: serverTimestamp(),
-    })
+  async function handleVerification(check) {
+    if (!user || verificationBusy) return
+    setVerificationBusy(true)
+    try {
+      if (!check) {
+        await sendVerification(user)
+        return
+      }
+      await user.reload()
+      if (!user.emailVerified) {
+        setVerificationMessage('Your email has not been verified yet. Open the link in your email, then try again.')
+        return
+      }
+      await user.getIdToken(true)
+      if (auth.currentUser?.uid === user.uid) {
+        setLoading(true)
+        setVerified(true)
+      }
+    } catch {
+      setVerificationMessage('Could not check your verification. Please try again.')
+    } finally {
+      setVerificationBusy(false)
+    }
   }
 
   async function handleSaveProfile(value, photoURL) {
@@ -143,6 +149,7 @@ export default function App() {
   }
 
   async function handleLogout() {
+    setVerificationMessage("")
     await signOut(auth)
   }
 
@@ -156,6 +163,29 @@ export default function App() {
       </div>
     )
   }
+
+  if (!user) {
+    return <LoginModal onLogin={handleLogin} onGoogleLogin={handleGoogleLogin} onSignup={handleSignup} authError={authError} />
+  }
+
+  if (!verified) {
+    return (
+      <main className="verification-gate">
+        <section className="hotel-glass" aria-labelledby="verify-title">
+          <h1 id="verify-title">Verify your email</h1>
+          <p>Open the verification link sent to <strong>{user.email}</strong>. Then return here to continue to the hotel website.</p>
+          {verificationMessage && <p role="status" className="account-notice">{verificationMessage}</p>}
+          <div className="account-actions">
+            <button type="button" className="hotel-action" disabled={verificationBusy} onClick={() => handleVerification(true)}>I verified my email</button>
+            <button type="button" className="hotel-action secondary" disabled={verificationBusy} onClick={() => handleVerification(false)}>Resend verification email</button>
+            <button type="button" className="hotel-action secondary" disabled={verificationBusy} onClick={handleLogout}>Sign out</button>
+          </div>
+        </section>
+      </main>
+    )
+  }
+
+  if (!profile) return <p role="alert">Unable to load your account. <button type="button" onClick={handleLogout}>Sign out</button></p>
 
   if (user && profile && profile.role === 'admin') {
     return <Display currentUser={profile} onLogout={handleLogout} />

@@ -31,9 +31,9 @@ async function profilePicture(file) {
   }
 }
 
-export default function GuestAccount({ api, user, rooms, menu, onLogin, onLogout, onClose, onViewReceipt, onSaveProfile, onBookAgain, onOrderAgain }) {
+export default function GuestAccount({ api, user, rooms, menu, initialTab = "profile", updates, onLogin, onLogout, onClose, onViewReceipt, onSaveProfile, onBookAgain, onOrderAgain }) {
   const dialog = useRef(null);
-  const [tab, setTab] = useState("profile");
+  const [tab, setTab] = useState(initialTab);
   const [name, setName] = useState(user?.name || "");
   const [photo, setPhoto] = useState(user?.photoURL || "");;
   const [reservations, setReservations] = useState([]);
@@ -85,6 +85,15 @@ export default function GuestAccount({ api, user, rooms, menu, onLogin, onLogout
     }
   }
 
+  function checkOutEarly(item) {
+    if (!window.confirm("Check out today? Please return your room key to the front desk.")) return;
+    run("early-checkout", async () => {
+      const result = await accountFetch(api + "/guest/reservations/" + item.id + "/early-checkout", { method: "PATCH" }).then(readJson);
+      setReservations((items) => items.map((record) => record.id === item.id ? result.reservation : record));
+      setMessage("Early checkout recorded. Please return your room key to the front desk.");
+    });
+  }
+
   function cancel(resource, item) {
     if (!window.confirm("Cancel " + item.code + "?")) return;
     run("cancel", async () => {
@@ -94,6 +103,13 @@ export default function GuestAccount({ api, user, rooms, menu, onLogin, onLogout
       setMessage(result.message);
     });
   }
+
+  const markViewed = updates?.markViewed;
+  useEffect(() => {
+    if (loading || !verified || !markViewed) return;
+    if (tab === "reservations") markViewed("reservations", reservations);
+    if (tab === "orders") markViewed("orders", orders);
+  }, [tab, verified, loading, reservations, orders, markViewed]);
 
   const visibleOrders = orders.filter((item) => ["Served", "Cancelled"].includes(item.status) === (orderView === "history"));
   const date = hotelToday();
@@ -122,7 +138,10 @@ export default function GuestAccount({ api, user, rooms, menu, onLogin, onLogout
         </div>
         <div className="account-tabs" aria-label="Account sections">
           {[["profile", "Details"], ["reservations", "Reservations"], ["orders", "Food orders"], ["reviews", "Reviews"]].map(([value, label]) => (
-            <button type="button" key={value} aria-pressed={tab === value} onClick={() => setTab(value)}>{label}</button>
+            <button type="button" key={value} className="guest-alert-anchor" aria-pressed={tab === value}
+              aria-label={updates?.[value] ? label + ", new updates" : undefined} onClick={() => setTab(value)}>
+              {label}{updates?.[value] && <span className="guest-update-dot" aria-hidden="true" />}
+            </button>
           ))}
         </div>
         {tab !== "profile" && <button className="hotel-action secondary guest-refresh" type="button" disabled={loading || !!action}
@@ -181,17 +200,23 @@ export default function GuestAccount({ api, user, rooms, menu, onLogin, onLogout
             {!reservations.length && <p>No room reservations yet.</p>}
             {reservations.map((item) => {
               const room = rooms.find((entry) => entry.name === item.roomType);
+              const canCheckOutEarly = item.status === "Confirmed" && !item.actualCheckOut && item.checkIn <= date && item.checkOut > date;
               const canCancel = ["Pending", "Confirmed"].includes(item.status) && item.paymentStatus === "Unpaid" && item.paymentMethod === "Cash" && item.checkIn > date;
               return (
                 <article key={item.id} className="account-card">
                   {room && <img src={room.image} alt={room.name} />}
                   <div className="account-card-heading"><strong>{item.code}</strong><span>{item.status}</span></div>
                   <h5>{item.roomType}</h5>
+                  {["Confirmed", "Checked out"].includes(item.status) && item.roomNumber && (
+                    <p className="account-room-assignment"><span>Assigned room</span><strong>{item.roomNumber}</strong></p>
+                  )}
+                  {item.status === "Pending" && <p>Room number will appear after the hotel approves your booking.</p>}
                   <p>{item.checkIn} to {item.checkOut} · {item.nights} night(s)</p>
                   {item.actualCheckOut && <p>Checked out {item.actualCheckOut}</p>}
                   <p>{formatPeso(item.totalAmount)} · {item.paymentStatus}</p>
                   <div className="account-actions">
                     <button type="button" className="hotel-action secondary" onClick={() => onViewReceipt(item)}>View receipt</button>
+                    {canCheckOutEarly && <button type="button" className="hotel-action" disabled={!!action} onClick={() => checkOutEarly(item)}>Check out early</button>}
                     <button type="button" className="hotel-action" disabled={!!action} onClick={() => run("rebook", () => onBookAgain(item))}>Book again</button>
                     {canCancel && <button type="button" className="hotel-action danger" disabled={!!action} onClick={() => cancel("reservations", item)}>Cancel booking</button>}
                   </div>
