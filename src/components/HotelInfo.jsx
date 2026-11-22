@@ -1617,7 +1617,10 @@ export default function HotelInfo({ user, onLogin, onGoogleLogin, onSignup, auth
                       <path d="m5 12 4 4L19 6" pathLength="1" />
                     </svg>
                   </span>}
-                  <span>{receiptTone.text}</span>
+                  <span>
+                    {newReceipt && <strong className="booking-receipt-congratulations">Congratulations!</strong>}
+                    {receiptTone.text}
+                  </span>
                 </div>
 
                 <div
