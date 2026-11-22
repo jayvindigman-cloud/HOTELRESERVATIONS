@@ -339,6 +339,7 @@ function FoodOrder({ cart, setCart, menu, addToCart, user, onClose, notice, refr
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [placedOrder, setPlacedOrder] = useState(null);
+  const [cancellingOrder, setCancellingOrder] = useState(false);
 
   const [extraFoodId, setExtraFoodId] = useState("");
   const lines = Object.values(cart);
@@ -361,7 +362,7 @@ function FoodOrder({ cart, setCart, menu, addToCart, user, onClose, notice, refr
 
   const submitOrder = async (e) => {
     e.preventDefault();
-    if (lines.length === 0 || unavailable) return;
+    if (lines.length === 0 || unavailable || submitting) return;
     setError("");
     setSubmitting(true);
     try {
@@ -394,6 +395,21 @@ function FoodOrder({ cart, setCart, menu, addToCart, user, onClose, notice, refr
     }
   };
 
+  async function cancelPlacedOrder() {
+    if (cancellingOrder || placedOrder.status !== "Pending" ||
+        !window.confirm("Cancel food order " + placedOrder.code + "?")) return;
+    setCancellingOrder(true);
+    setError("");
+    try {
+      await accountFetch(`${API}/guest/orders/${placedOrder.id}/cancel`, { method: "PATCH" }).then(readJson);
+      setPlacedOrder((order) => ({ ...order, status: "Cancelled" }));
+    } catch (failure) {
+      setError(failure.message);
+    } finally {
+      setCancellingOrder(false);
+    }
+  }
+
   return (
     <div className="bb-overlay" onClick={onClose} style={foodOverlayStyle}>
       <div className="bb-modal" onClick={(e) => e.stopPropagation()} style={foodModalStyle}>
@@ -403,7 +419,7 @@ function FoodOrder({ cart, setCart, menu, addToCart, user, onClose, notice, refr
 
         {placedOrder ? (
           <div>
-            <div
+            <div role="status"
               style={{
                 backgroundColor: "#fff4dc",
                 color: "#8a5a00",
@@ -414,7 +430,7 @@ function FoodOrder({ cart, setCart, menu, addToCart, user, onClose, notice, refr
                 margin: "6px 30px 20px 0",
               }}
             >
-              Order received. The kitchen will confirm it shortly.
+              {placedOrder.status === "Cancelled" ? "Order cancelled." : "Order received. The kitchen will confirm it shortly."}
             </div>
             <div style={{ border: "1px dashed #1d3f40", borderRadius: "10px", padding: "20px", backgroundColor: "#fffdf7" }}>
               <div style={{ textAlign: "center", borderBottom: "1px solid #ddd", paddingBottom: "10px", marginBottom: "14px" }}>
@@ -446,15 +462,22 @@ function FoodOrder({ cart, setCart, menu, addToCart, user, onClose, notice, refr
                   </div>
                 )}
                 <div style={{ display: "flex", justifyContent: "space-between", borderTop: "2px solid #1d3f40", marginTop: "12px", paddingTop: "10px", fontSize: "1.1rem" }}>
-                  <strong>Total to pay:</strong>
+                  <strong>{placedOrder.status === "Cancelled" ? "Cancelled order total:" : "Total to pay:"}</strong>
                   <strong style={{ color: "#1d3f40" }}>{peso(placedOrder.totalAmount)}</strong>
                 </div>
               </div>
             </div>
             <p style={{ textAlign: "center", fontSize: "0.85rem", color: "#666", margin: "14px 0" }}>
-              Pay when your order is served. You can check its status anytime in Profile.
+              {placedOrder.status === "Cancelled" ? "You can find this order in Profile → Food orders → History." :
+                "You can cancel while your order is pending. Pay when your order is served."}
             </p>
-            <button className="bb-submit" onClick={onClose}>Close</button>
+            {error && <p className="account-notice" role="alert">{error}</p>}
+            <div className="account-actions">
+              {placedOrder.status === "Pending" && <button type="button" className="hotel-action danger" disabled={cancellingOrder} onClick={cancelPlacedOrder}>
+                {cancellingOrder ? "Cancelling…" : "Cancel order"}
+              </button>}
+              <button type="button" className="hotel-action secondary" disabled={cancellingOrder} onClick={onClose}>Close</button>
+            </div>
           </div>
         ) : (
           <form onSubmit={submitOrder}>
