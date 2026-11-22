@@ -11,7 +11,7 @@ import AdminExtras from "./AdminExtras";
 import AdminCalendar from "./AdminCalendar";
 import { API_BASE, accountFetch, hotelToday, readJson } from "../hotel-api";
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { createPortal } from "react-dom";
+import { createPortal, flushSync } from "react-dom";
 import AdminKeysTab from "./AdminKeysTab";
 
 const API = API_BASE;
@@ -41,6 +41,7 @@ export default function AdminDashboard({ onLogout, currentUser }) {
   const [rooms, setRooms] = useState([]);
   const [foodOrderTarget, setFoodOrderTarget] = useState(null);
   const [confirmTarget, setConfirmTarget] = useState(null);
+  const [receiptToPrint, setReceiptToPrint] = useState(null);
   const [revenue, setRevenue] = useState(null);
   const [revenueError, setRevenueError] = useState(false);
 
@@ -857,7 +858,7 @@ export default function AdminDashboard({ onLogout, currentUser }) {
                 border: "1px solid #eef2f5",
               }}
             >
-              <BookingReport reservations={reservations} rooms={rooms} />
+              <BookingReport reservations={reservations} rooms={rooms} receipt={receiptToPrint} onClearReceipt={() => setReceiptToPrint(null)} />
               {roomFilter && (
                 <div className="account-notice">
                   Room type: {roomFilter}{" "}
@@ -1135,6 +1136,12 @@ export default function AdminDashboard({ onLogout, currentUser }) {
                             </td>
                             <td style={{ padding: "14px 16px" }}>
                               <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                                <button type="button" className="hotel-action secondary"
+                                  aria-label={"Print receipt for booking " + res.id}
+                                  onClick={() => {
+                                    flushSync(() => setReceiptToPrint(res));
+                                    window.print();
+                                  }}>Print Receipt</button>
                                 {res.actualCheckOut && <small>Checked out {res.actualCheckOut}</small>}
                                 {res.status === "Confirmed" && res.checkIn <= today && res.checkOut > today && (
                                   <button type="button" className="hotel-action secondary" onClick={async () => {

@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState } from "react";
-import { createPortal } from "react-dom";
+import { createPortal, flushSync } from "react-dom";
 import { formatPeso, hotelDate, hotelToday } from "../hotel-api";
 
 const periods = [
@@ -9,13 +9,18 @@ const periods = [
   [365, "Last 365 days"],
 ];
 
-export default function BookingReport({ reservations, rooms }) {
+export default function BookingReport({ reservations, rooms, receipt, onClearReceipt }) {
   const [days, setDays] = useState(1);
   const [room, setRoom] = useState("");
   useEffect(() => {
     document.body.classList.add("has-booking-report");
     return () => document.body.classList.remove("has-booking-report");
   }, []);
+  useEffect(() => {
+    if (!receipt) return;
+    window.addEventListener("afterprint", onClearReceipt);
+    return () => window.removeEventListener("afterprint", onClearReceipt);
+  }, [receipt, onClearReceipt]);
 
   const today = hotelToday();
   const firstDate = new Date(today + "T00:00:00Z");
@@ -41,12 +46,16 @@ export default function BookingReport({ reservations, rooms }) {
           <option value="">All room types</option>
           {roomOptions.map((name) => <option key={name}>{name}</option>)}
         </select></label>
-        <button type="button" className="hotel-action" onClick={() => window.print()}>Print report</button>
+        <button type="button" className="hotel-action" onClick={() => {
+          flushSync(onClearReceipt);
+          window.print();
+        }}>Print report</button>
       </div>
       <p><strong>{results.length}</strong> reservations {"·"} <strong>{guests}</strong> guests</p>
       {createPortal(
         <section className="booking-print">
           <h1>Hytech Hotel &amp; Bistro</h1>
+          {receipt ? <ReservationReceipt booking={receipt} /> : <>
           <h2>Booking report</h2>
           <p>Booked from {start} to {today} {"·"} {room || "All room types"}</p>
           <p><strong>{results.length} reservations {"·"} {guests} guests</strong></p>
@@ -67,8 +76,39 @@ export default function BookingReport({ reservations, rooms }) {
                 item.name + (item.quantity ? " × " + item.quantity : "") + " (" + formatPeso(item.amount) + ")").join(", ") : "None"}</p>
             </article>
           ))}
+          </>}
         </section>, document.body
       )}
     </section>
   );
+}
+
+function ReservationReceipt({ booking }) {
+  const details = [
+    ["Booking reference", booking.id],
+    ["Guest", booking.guestName],
+    ["Email", booking.email],
+    ["Contact number", booking.phone],
+    ["Room type", booking.roomType],
+    ["Room number", booking.roomNumber || "Unassigned"],
+    ["Occupants", booking.guestNames.join(", ") || booking.guestName],
+    ["Guest count", booking.guests],
+    ["Check-in", booking.checkIn],
+    ["Scheduled checkout", booking.checkOut],
+    ...(booking.actualCheckOut ? [["Actual checkout", booking.actualCheckOut]] : []),
+    ["Booking status", booking.status],
+    ["Payment method", booking.paymentMethod],
+    ["Payment status", booking.paymentStatus],
+    ...(booking.paymentReference ? [["Payment reference", booking.paymentReference]] : []),
+    ...(booking.voucherCode ? [["Discount", booking.voucherCode + " · " + formatPeso(booking.discountAmount)]] : []),
+    ...booking.extras.map((extra) => [extra.name + (extra.quantity ? " × " + extra.quantity : ""), formatPeso(extra.amount)]),
+    ...(booking.notes ? [["Special requests", booking.notes]] : []),
+    ["Reservation total", formatPeso(booking.totalAmount)],
+  ];
+  return <>
+    <h2>Reservation Receipt</h2>
+    <dl className="booking-receipt-print-details">
+      {details.map(([label, value], index) => <div key={index}><dt>{label}</dt><dd>{value || "—"}</dd></div>)}
+    </dl>
+  </>;
 }

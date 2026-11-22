@@ -822,6 +822,9 @@ body:has(.guest-account-dialog[open], .hotel-reservation, .hotel-receipt) { over
   .booking-print h2 { font-size: 17pt; }
   .booking-print article { margin-top: 14px; padding-top: 8px; border-top: 1px solid #aaa; break-inside: avoid; }
   .booking-print article h3 { font-size: 13pt; }
+  .booking-receipt-print-details > div { display: grid; grid-template-columns: minmax(32mm, 1fr) 2fr; gap: 10pt; border-bottom: 1px solid #ddd; padding: 4pt 0; break-inside: avoid; }
+  .booking-receipt-print-details dt, .booking-receipt-print-details > div:last-child { font-weight: 700; }
+  .booking-receipt-print-details dd { margin: 0; overflow-wrap: anywhere; }
 }
 @media (prefers-reduced-motion: no-preference) {
   html { scroll-behavior: smooth; }
