@@ -432,8 +432,11 @@ function FoodOrder({ cart, setCart, menu, addToCart, user, onClose, notice, refr
                   <span>{placedOrder.roomNumber || "Not specified"}</span>
                 </div>
                 {placedOrder.items.map((item) => (
-                  <div key={item.title} style={{ display: "flex", justifyContent: "space-between", gap: "12px" }}>
-                    <span>{item.qty} × {item.title}</span>
+                  <div key={item.id || item.title} className="guest-food-receipt-line">
+                    <span className="guest-food-line-item">
+                      {item.image && <img className="guest-food-line-photo" src={item.image} alt="" referrerPolicy="no-referrer" />}
+                      <span>{item.qty} × {item.title}</span>
+                    </span>
                     <span>{peso(item.price * item.qty)}</span>
                   </div>
                 ))}
@@ -471,15 +474,20 @@ function FoodOrder({ cart, setCart, menu, addToCart, user, onClose, notice, refr
                 {lines.map((line) => (
                   <div
                     key={line.id}
-                    style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 0", borderBottom: "1px solid #e3d6b6" }}
+                    className="guest-food-cart-line"
                   >
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: "600", color: "#1d3f40" }}>{line.title}{line.availability !== "available" && <small> (unavailable)</small>}</div>
-                      <div style={{ fontSize: "0.82rem", color: "#777" }}>{peso(line.price)} each</div>
+                    <div className="guest-food-line-item">
+                      {line.image && <img className="guest-food-line-photo" src={line.image} alt="" referrerPolicy="no-referrer" />}
+                      <div>
+                        <div style={{ fontWeight: "600", color: "#1d3f40" }}>{line.title}{line.availability !== "available" && <small> (unavailable)</small>}</div>
+                        <div style={{ fontSize: "0.82rem", color: "#777" }}>{peso(line.price)} each</div>
+                      </div>
                     </div>
+                    <div className="guest-food-line-quantity">
                     <button type="button" style={qtyButton} onClick={() => changeQty(line.id, -1)} disabled={submitting} aria-label={"Remove one " + line.title}>−</button>
                     <span style={{ minWidth: "20px", textAlign: "center", fontWeight: "700" }}>{line.qty}</span>
                     <button type="button" style={qtyButton} onClick={() => changeQty(line.id, 1)} disabled={submitting || line.availability !== "available" || line.qty >= 50} aria-label={"Add one " + line.title}>+</button>
+                    </div>
                     <span style={{ minWidth: "70px", textAlign: "right", fontWeight: "700", color: "#1d3f40" }}>
                       {peso(line.price * line.qty)}
                     </span>
@@ -776,7 +784,7 @@ export default function HotelInfo({ user, onLogin, onGoogleLogin, onSignup, auth
     setMenuError("");
     setCart((previous) => Object.fromEntries(Object.values(previous).map((line) => {
       const current = items.find((item) => item.id === line.id);
-      return [line.id, current ? { ...line, title: current.title, price: Number(current.price), availability: current.availability } : { ...line, availability: "unavailable" }];
+      return [line.id, current ? { ...line, title: current.title, image: current.image, price: Number(current.price), availability: current.availability } : { ...line, availability: "unavailable" }];
     })));
     return items;
   }
@@ -795,7 +803,7 @@ export default function HotelInfo({ user, onLogin, onGoogleLogin, onSignup, auth
     if (item.availability !== "available") return;
     setCart((previous) => ({
       ...previous,
-      [item.id]: { id: item.id, title: item.title, price: Number(item.price), availability: item.availability,
+      [item.id]: { id: item.id, title: item.title, image: item.image, price: Number(item.price), availability: item.availability,
         qty: Math.min((previous[item.id]?.qty || 0) + 1, 50) },
     }));
   };
@@ -811,7 +819,7 @@ export default function HotelInfo({ user, onLogin, onGoogleLogin, onSignup, auth
         continue;
       }
       const qty = Math.min((selection[item.id]?.qty || 0) + Number(line.qty || line.quantity || 1), 50);
-      selection[item.id] = { id: item.id, title: item.title, price: Number(item.price), availability: item.availability, qty };
+      selection[item.id] = { id: item.id, title: item.title, image: item.image, price: Number(item.price), availability: item.availability, qty };
     }
     if (!Object.keys(selection).length) throw new Error("The items in this order are currently unavailable.");
     setCart((previous) => ({ ...previous, ...selection }));

@@ -857,6 +857,11 @@ body:has(.guest-account-dialog[open], .hotel-reservation, .hotel-receipt) { over
 .profile-food-list { list-style: none; padding: 0; margin: 7px 0; display: grid; gap: 6px; }
 .profile-food-list li { display: flex; align-items: center; gap: 9px; min-width: 0; }
 .profile-food-list img { flex: 0 0 46px; width: 46px; height: 42px; border-radius: 8px; object-fit: cover; }
+.guest-food-cart-line, .guest-food-receipt-line { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-block: 7px; border-bottom: 1px solid #e3d6b6; }
+.guest-food-cart-line { flex-wrap: wrap; }
+.guest-food-line-item { display: flex; flex: 1 1 140px; align-items: center; gap: 8px; min-width: 0; overflow-wrap: anywhere; }
+.guest-food-line-quantity { display: inline-flex; align-items: center; gap: 5px; margin-left: auto; }
+.guest-food-line-photo { flex: none; width: 48px; height: 42px; object-fit: cover; border-radius: 8px; }
 
 .guest-site-shell { position: relative; isolation: isolate; }
 .guest-moving-background {
