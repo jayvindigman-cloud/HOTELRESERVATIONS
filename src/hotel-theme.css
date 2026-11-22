@@ -453,8 +453,15 @@ body:has(.room-details[open]) { overflow: hidden; }
 .guest-review-form fieldset label:focus-within { outline: 2px solid #a47724; border-radius: 4px; }
 .guest-review-form > label, .guest-profile-form > label { width: 100%; text-align: left; }
 .guest-review-form textarea, .guest-profile-form input, .admin-extra-form :is(input:not([type="checkbox"]),textarea,select) { display: block; width: 100%; padding: .55em; border: 1px solid #acb7a2; border-radius: 10px; background: #fffc; }
-.admin-extra-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 215px), 1fr)); gap: 14px; margin-top: 20px; text-align: left; }
-.admin-extra-card[data-photo="false"] { min-height: 0; padding-top: 8px; }
+.admin-extra-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr)); align-items: start; gap: 10px; margin-top: 12px; text-align: left; }
+.admin-room-card.admin-extra-card { min-height: 0; padding: 56px 6px 6px; }
+.admin-room-card.admin-extra-card[data-photo="false"] { padding-top: 6px; }
+.admin-extra-card .admin-room-glass { padding: 8px; }
+.admin-extra-card .admin-room-glass p { margin-bottom: 4px; }
+.admin-extra-card .hotel-action { min-height: 38px; padding: 4px 10px; font-size: .8rem; }
+@media (pointer: coarse) {
+  .admin-extra-card .hotel-action { min-height: 44px; }
+}
 .admin-extra-photo-preview { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .admin-extra-photo-preview img { width: 112px; height: 75px; object-fit: cover; border-radius: 8px; }
 .booking-option img.booking-extra-photo { width: 64px; height: 52px; flex: none; object-fit: cover; border-radius: 8px; }
