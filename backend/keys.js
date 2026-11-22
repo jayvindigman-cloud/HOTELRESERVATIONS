@@ -71,6 +71,39 @@ async function backfillRoomKeys() {
 const router = express.Router();
 const route = (fn) => (req, res, next) => fn(req, res).catch(next);
 
+async function releaseCheckoutKeys(conn, reservationId) {
+  const [keys] = await conn.query(`
+    SELECT k.id, k.key_tag, k.room_number, k.holder, k.booking_code, r.actual_check_out
+    FROM physical_keys k
+    JOIN reservations r ON BINARY r.reservation_code = BINARY k.booking_code
+    WHERE k.status IN ('Assigned','Issued') AND r.status = 'Confirmed'
+      AND COALESCE(r.actual_check_out, r.check_out) <= DATE(UTC_TIMESTAMP() + INTERVAL 8 HOUR)
+      ${reservationId === undefined ? "" : "AND r.id = ?"}
+    ORDER BY k.id FOR UPDATE`, reservationId === undefined ? [] : [reservationId]);
+  if (!keys.length) return;
+  await conn.query(`INSERT INTO physical_key_events
+    (key_id,key_tag,room_number,action,holder,booking_code,notes) VALUES ?`, [keys.map((key) => [
+    key.id, key.key_tag, key.room_number, "Auto release", key.holder, key.booking_code,
+    key.actual_check_out ? "Released after early checkout" : "Released on the scheduled checkout date",
+  ])]);
+  await conn.query(`UPDATE physical_keys SET status='Available',holder=NULL,booking_code=NULL,issued_at=NULL
+    WHERE id IN (?)`, [keys.map((key) => key.id)]);
+}
+
+async function sweepCheckoutKeys() {
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    await releaseCheckoutKeys(conn);
+    await conn.commit();
+  } catch (error) {
+    await conn.rollback();
+    throw error;
+  } finally {
+    conn.release();
+  }
+}
+
 router.get("/", route(async (req, res) => {
   const [keys] = await pool.query(`SELECT k.id, k.key_tag AS keyTag, k.room_number AS roomNumber,
     t.name AS roomType,
@@ -166,4 +199,4 @@ router.use((error, req, res, next) => {
   res.status(500).json({ message: "Unable to save or load keys. Please try again." });
 });
 
-module.exports = { router, initializeKeys, ensureRoomKey, backfillRoomKeys };
+module.exports = { router, initializeKeys, ensureRoomKey, backfillRoomKeys, releaseCheckoutKeys, sweepCheckoutKeys };

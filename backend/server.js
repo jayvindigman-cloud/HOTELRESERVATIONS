@@ -7,7 +7,7 @@ const cors = require("cors");
 const pool = require("./db");
 const { initializeMenu, registerMenu, menuOrderLines } = require("./menu");
 const { account, admin, verifiedEmail, privateList, initializeGuestFeatures, priceExtras, registerGuestFeatures } = require("./guest-features");
-const { router: keysRouter, initializeKeys, ensureRoomKey, backfillRoomKeys } = require("./keys");
+const { router: keysRouter, initializeKeys, ensureRoomKey, backfillRoomKeys, releaseCheckoutKeys, sweepCheckoutKeys } = require("./keys");
 const { initializeSignupOtp, registerSignupOtp } = require("./signup-otp");
 
 const nodemailer = require("nodemailer");
@@ -597,13 +597,27 @@ app.patch("/api/reservations/:id/status", account, admin, wrap(async (req, res) 
 async function recordEarlyCheckout(req, res, guestEmail) {
   const ownerClause = guestEmail === undefined ? "" : " AND LOWER(email) = ?";
   const params = guestEmail === undefined ? [req.params.id] : [req.params.id, guestEmail];
-  const [result] = await pool.query(
-    "UPDATE reservations SET actual_check_out = DATE(UTC_TIMESTAMP() + INTERVAL 8 HOUR) " +
-    "WHERE id = ? AND status = 'Confirmed' AND actual_check_out IS NULL " +
-    "AND check_in <= DATE(UTC_TIMESTAMP() + INTERVAL 8 HOUR) AND check_out > DATE(UTC_TIMESTAMP() + INTERVAL 8 HOUR)" + ownerClause,
-    params
-  );
-  if (!result.affectedRows) return res.status(409).json({ message: "Only an active confirmed stay can check out early." });
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    const [result] = await connection.query(
+      "UPDATE reservations SET actual_check_out = DATE(UTC_TIMESTAMP() + INTERVAL 8 HOUR) " +
+      "WHERE id = ? AND status = 'Confirmed' AND actual_check_out IS NULL " +
+      "AND check_in <= DATE(UTC_TIMESTAMP() + INTERVAL 8 HOUR) AND check_out > DATE(UTC_TIMESTAMP() + INTERVAL 8 HOUR)" + ownerClause,
+      params
+    );
+    if (!result.affectedRows) {
+      await connection.rollback();
+      return res.status(409).json({ message: "Only an active confirmed stay can check out early." });
+    }
+    await releaseCheckoutKeys(connection, req.params.id);
+    await connection.commit();
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
   const reservation = await findReservation(req.params.id);
   res.json({ message: "Early checkout recorded.", reservation });
 }
@@ -766,8 +780,11 @@ initializeDatabase()
   .then(() => initializeGuestFeatures())
   .then(() => initializeSignupOtp())
   .then(() => initializeMenu())
+  .then(() => sweepCheckoutKeys())
   .then(() => {
     const port = Number(process.env.PORT || 8080);
+    const releaseKeys = () => sweepCheckoutKeys().catch((error) => console.error("Scheduled key release failed:", error.code || error.message));
+    setInterval(releaseKeys, 60000).unref();
     return app.listen(port, () => console.log("Server running on port " + port + ", DB connected"));
   })
   .catch((e) => { console.error("Could not initialize the hotel database:", e.message); process.exit(1); });
