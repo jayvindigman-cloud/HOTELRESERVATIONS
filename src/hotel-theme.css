@@ -902,7 +902,7 @@ body:has(.guest-account-dialog[open], .hotel-reservation, .hotel-receipt) { over
   .guest-site-shell .hotel-navigation .guest-mobile-navigation {
     display: grid !important;
     flex: 0 0 100%;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 3px;
     max-height: none;
     overflow: visible;
@@ -935,7 +935,7 @@ body:has(.guest-account-dialog[open], .hotel-reservation, .hotel-receipt) { over
   .guest-nav-more summary::-webkit-details-marker { display: none; }
   .guest-nav-more > div { display: grid; position: absolute; right: 0; top: calc(100% + 8px); min-width: 158px; padding: 5px; background: #fffdf3; border: 1px solid #d1dcc8; border-radius: 12px; box-shadow: var(--hotel-shadow); }
   .guest-nav-more:not([open]) > div { display: none; }
-  .guest-nav-more > div :is(a, button) { justify-content: flex-start; padding: 5px 8px; color: var(--guest-forest); background: transparent; border: 0; text-decoration: none; }
+  .guest-nav-more > div :is(a, button) { justify-content: flex-start; gap: 6px; padding: 5px 8px; color: var(--guest-forest); background: transparent; border: 0; text-decoration: none; }
   .guest-nav-more > div :is(a, button):hover { background: #ecf2e3; }
   #root .guest-site-shell section[id] { scroll-margin-top: 138px; }
 }

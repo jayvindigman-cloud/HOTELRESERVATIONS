@@ -1134,16 +1134,21 @@ export default function HotelInfo({ user, onLogin, onGoogleLogin, onSignup, auth
           {(guestUpdates.reservations || guestUpdates.orders) && <span className="guest-update-dot" aria-hidden="true" />}
         </button>
         <nav className="guest-mobile-navigation" aria-label="Hotel navigation">
-          <button type="button" className="guest-alert-anchor" aria-label={guestUpdates.reservations ? "My Stays, reservation confirmed" : "My Stays"} onClick={() => setAccountTab("reservations")}>
-            <GuestNavIcon name="stays" />My Stays
-            {guestUpdates.reservations && <span className="guest-update-dot" aria-hidden="true" />}
-          </button>
           <a href="#home"><GuestNavIcon name="home" />Home</a>
           <a href="#rooms"><GuestNavIcon name="rooms" />Rooms</a>
           <a href="#food"><GuestNavIcon name="food" />Food &amp; Drink</a>
           <details className="guest-nav-more">
-            <summary><GuestNavIcon name="more" />More</summary>
+            <summary className="guest-alert-anchor" aria-label={guestUpdates.reservations ? "More, reservation confirmed" : undefined}>
+              <GuestNavIcon name="more" />More
+              {guestUpdates.reservations && <span className="guest-update-dot" aria-hidden="true" />}
+            </summary>
             <div>
+              <button type="button" className="guest-alert-anchor"
+                aria-label={guestUpdates.reservations ? "My Stays, reservation confirmed" : undefined}
+                onClick={(event) => { closeGuestMenu(event); setAccountTab("reservations"); }}>
+                <GuestNavIcon name="stays" />My Stays
+                {guestUpdates.reservations && <span className="guest-update-dot" aria-hidden="true" />}
+              </button>
               <a href="#hotel" onClick={closeGuestMenu}>The Hotel</a>
               <a href="#reviews" onClick={closeGuestMenu}>Reviews</a>
               <a href="#contact" onClick={closeGuestMenu}>Contact</a>
