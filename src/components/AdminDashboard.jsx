@@ -76,7 +76,10 @@ export default function AdminDashboard({ onLogout, currentUser }) {
       }
     }
     refreshRevenue();
-    const timer = setInterval(refreshRevenue, 20000);
+    const timer = setInterval(() => {
+      refreshRevenue();
+      loadReservations();
+    }, 20000);
     return () => { clearInterval(timer); controller.abort(); };
   }, [activeTab]);
 
@@ -779,6 +782,24 @@ export default function AdminDashboard({ onLogout, currentUser }) {
                     </div>
                   </div>
                 </div>
+                <section className="hotel-admin-panel admin-recent-reservations" aria-labelledby="admin-recent-title">
+                  <header>
+                    <h3 id="admin-recent-title">Recent Reservations</h3>
+                    <button type="button" className="hotel-action secondary" onClick={() => openBookingList()}>View all</button>
+                  </header>
+                  {reservations.length === 0 ? <p>No reservations yet.</p> : (
+                    <ul>
+                      {[...reservations].sort((first, second) =>
+                        Number(second.createdEpoch || 0) - Number(first.createdEpoch || 0) || Number(second.dbId) - Number(first.dbId)
+                      ).slice(0, 5).map((booking) => <li key={booking.dbId}>
+                        <button type="button" className="admin-recent-booking" onClick={() => openBookingList("All", booking.id)}>
+                          <span><strong>{booking.guestName}</strong><small>{booking.roomType} · {booking.checkIn}</small><small>{booking.id}</small></span>
+                          <span className="admin-recent-status" data-status={booking.status}>{booking.status}</span>
+                        </button>
+                      </li>)}
+                    </ul>
+                  )}
+                </section>
               </div>
             </div>
           )}

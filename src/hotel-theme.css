@@ -1184,3 +1184,15 @@ body:has(.guest-account-dialog[open], .hotel-reservation, .hotel-receipt) { over
 .admin-revenue-card dl { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 0; }
 .admin-revenue-card dt { color: #526a5d; font-size: .78rem; }
 .admin-revenue-card dd { margin: 0; color: #22473e; font-weight: 700; }
+.admin-recent-reservations { margin-top: 16px; padding: 12px; text-align: left; }
+.admin-recent-reservations header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px; }
+.admin-recent-reservations h3 { margin: 0; color: #345c4d; font-size: .95rem; }
+.admin-recent-reservations :is(p, ul) { margin: 8px 0 0; color: #526a5d; font-size: .82rem; }
+.admin-recent-reservations ul { display: grid; gap: 5px; padding: 0; list-style: none; }
+.admin-recent-booking { display: flex; justify-content: space-between; align-items: start; gap: 6px; width: 100%; padding: 7px; border: 1px solid #d5e3d6; border-radius: 8px; background: #ffffffa6; color: #24493e; text-align: left; cursor: pointer; }
+.admin-recent-booking:hover { background: #edf5e9; }
+.admin-recent-booking > span:first-child { min-width: 0; overflow-wrap: anywhere; }
+.admin-recent-booking small { display: block; }
+.admin-recent-status { flex-shrink: 0; padding: 2px 5px; border-radius: 999px; background: #fbeece; color: #704d0e; font-size: .73rem; }
+.admin-recent-status:is([data-status="Confirmed"], [data-status="Checked out"]) { background: #e0efdc; color: #274d37; }
+.admin-recent-status[data-status="Cancelled"] { background: #f6dedb; color: #842f25; }
