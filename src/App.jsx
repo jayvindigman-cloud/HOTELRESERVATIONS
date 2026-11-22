@@ -1,4 +1,4 @@
-import { API_BASE, accountFetch } from "./hotel-api";
+import { API_BASE, accountFetch, readJson } from "./hotel-api";
 import { useEffect, useState } from 'react'
 import {
   createUserWithEmailAndPassword,
@@ -22,6 +22,8 @@ export default function App() {
   const [verified, setVerified] = useState(false)
   const [verificationMessage, setVerificationMessage] = useState("")
   const [verificationBusy, setVerificationBusy] = useState(false)
+  const [verificationMethod, setVerificationMethod] = useState("")
+  const [verificationCode, setVerificationCode] = useState("")
   const [authError, setAuthError] = useState('')
 
   useEffect(() => onAuthStateChanged(auth, (current) => {
@@ -81,6 +83,21 @@ export default function App() {
     return () => controller.abort();
   }, [user, profile]);
 
+  useEffect(() => {
+    if (!user || verified) return;
+    const controller = new AbortController();
+    fetch(API_BASE + "/signup-verification", { signal: controller.signal }).then(readJson)
+      .then(({ method }) => { if (!controller.signal.aborted) setVerificationMethod(method); })
+      .catch(() => { if (!controller.signal.aborted) setVerificationMethod("link"); });
+    return () => controller.abort();
+  }, [user, verified]);
+
+  function requestVerification(action, body) {
+    return accountFetch(API_BASE + "/signup-verification/" + action, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+    }).then(readJson);
+  }
+
   async function handleLogin(email, password) {
     setAuthError('')
     await signInWithEmailAndPassword(auth, email.trim(), password)
@@ -106,12 +123,20 @@ export default function App() {
 
   async function sendVerification(current) {
     try {
+      const { method } = await fetch(API_BASE + "/signup-verification").then(readJson).catch(() => ({ method: "link" }));
+      setVerificationMethod(method);
+      if (method === "otp") {
+        const result = await requestVerification("send", {});
+        setVerificationCode("");
+        setVerificationMessage(result.message || "Your email is already verified. Continue to sign in.");
+        return;
+      }
       await sendEmailVerification(current)
       setVerificationMessage('Verification email sent. Check your inbox and spam folder.')
     } catch (error) {
       setVerificationMessage(error.code === 'auth/too-many-requests'
         ? 'Too many requests. Wait a few minutes before resending.'
-        : 'The verification email could not be sent. Please try resending it.')
+        : error.message || 'The verification email could not be sent. Please try resending it.')
     }
   }
 
@@ -123,9 +148,10 @@ export default function App() {
         await sendVerification(user)
         return
       }
+      if (verificationMethod === "otp") await requestVerification("confirm", { code: verificationCode });
       await user.reload()
       if (!user.emailVerified) {
-        setVerificationMessage('Your email has not been verified yet. Open the link in your email, then try again.')
+        setVerificationMessage('Your email has not been verified yet. Check the verification email and try again.')
         return
       }
       await user.getIdToken(true)
@@ -133,8 +159,8 @@ export default function App() {
         setLoading(true)
         setVerified(true)
       }
-    } catch {
-      setVerificationMessage('Could not check your verification. Please try again.')
+    } catch (error) {
+      setVerificationMessage(error.message || 'Could not check your verification. Please try again.')
     } finally {
       setVerificationBusy(false)
     }
@@ -150,6 +176,8 @@ export default function App() {
 
   async function handleLogout() {
     setVerificationMessage("")
+    setVerificationCode("")
+    setVerificationMethod("")
     await signOut(auth)
   }
 
@@ -173,13 +201,25 @@ export default function App() {
       <main className="verification-gate">
         <section className="hotel-glass" aria-labelledby="verify-title">
           <h1 id="verify-title">Verify your email</h1>
-          <p>Open the verification link sent to <strong>{user.email}</strong>. Then return here to continue to the hotel website.</p>
+          {verificationMethod === "otp"
+            ? <p>Enter the six-digit code sent to <strong>{user.email}</strong>.</p>
+            : <p>Check <strong>{user.email}</strong> for your verification email.</p>}
           {verificationMessage && <p role="status" className="account-notice">{verificationMessage}</p>}
-          <div className="account-actions">
-            <button type="button" className="hotel-action" disabled={verificationBusy} onClick={() => handleVerification(true)}>I verified my email</button>
-            <button type="button" className="hotel-action secondary" disabled={verificationBusy} onClick={() => handleVerification(false)}>Resend verification email</button>
-            <button type="button" className="hotel-action secondary" disabled={verificationBusy} onClick={handleLogout}>Sign out</button>
-          </div>
+          <form className="password-recovery" onSubmit={(event) => { event.preventDefault(); handleVerification(true); }}>
+            {verificationMethod === "otp" && <label>Verification code
+              <input type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6}
+                required value={verificationCode} onChange={(event) => setVerificationCode(event.target.value)} />
+            </label>}
+            <div className="account-actions">
+              <button type="submit" className="hotel-action" disabled={verificationBusy || !verificationMethod}>
+                {verificationMethod === "otp" ? "Verify code" : "I verified my email"}
+              </button>
+              <button type="button" className="hotel-action secondary" disabled={verificationBusy} onClick={() => handleVerification(false)}>
+                {verificationMethod === "otp" ? "Send another code" : "Resend verification email"}
+              </button>
+              <button type="button" className="hotel-action secondary" disabled={verificationBusy} onClick={handleLogout}>Sign out</button>
+            </div>
+          </form>
         </section>
       </main>
     )

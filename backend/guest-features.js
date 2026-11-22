@@ -3,7 +3,7 @@ const pool = require("./db");
 const firebaseKey = process.env.FIREBASE_WEB_API_KEY || "AIzaSyAvLYLd3Q6FeAHhE-Xw6WO1hPOdfXgREYA";
 const project = process.env.FIREBASE_PROJECT_ID || "hotel-reservation-f1a6e";
 
-async function account(req, res, next) {
+async function firebaseAccount(req, res, next) {
   const token = req.get("authorization")?.match(/^Bearer (\S+)$/i)?.[1];
   if (!token) return res.status(401).json({ message: "Sign in to continue." });
   try {
@@ -16,12 +16,18 @@ async function account(req, res, next) {
     if (response.status >= 500) throw new Error("Firebase unavailable");
     const user = response.ok && (await response.json()).users?.[0];
     if (!user?.email || user.disabled) return res.status(401).json({ message: "Please sign in again." });
-    if (!user.emailVerified) return res.status(403).json({ message: "Verify your email to continue." });
     req.account = user;
     return next();
   } catch {
     return res.status(503).json({ message: "Account verification is temporarily unavailable." });
   }
+}
+
+function account(req, res, next) {
+  return firebaseAccount(req, res, () => {
+    if (!req.account.emailVerified) return res.status(403).json({ message: "Verify your email to continue." });
+    next();
+  });
 }
 
 async function admin(req, res, next) {
@@ -273,4 +279,4 @@ function registerGuestFeatures(app, wrap) {
   }));
 }
 
-module.exports = { account, admin, verifiedEmail, privateList, initializeGuestFeatures, priceExtras, registerGuestFeatures };
+module.exports = { account, admin, firebaseAccount, firebaseKey, project, verifiedEmail, privateList, initializeGuestFeatures, priceExtras, registerGuestFeatures };

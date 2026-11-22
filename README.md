@@ -13,3 +13,9 @@ Run the root React app and the Express backend. On Windows, the VS Code launch t
 5. If the hotel sends email, set `GMAIL_USER` and `GMAIL_APP_PASSWORD` on the backend only. Revoke the old app password previously stored in source and use a replacement before sharing or publishing the repository.
 
 After deploying, check the menu and room calendar, sign in as a guest and as an admin, and verify a test booking from the deployed URL.
+
+## Signup verification codes
+
+To send six-digit signup codes, configure `GMAIL_USER` and `GMAIL_APP_PASSWORD` on the Express host. Set `GOOGLE_APPLICATION_CREDENTIALS` to the path of a service-account JSON file for the same project as `FIREBASE_PROJECT_ID`. The service account needs the `firebaseauth.users.sendEmail` permission to generate a Firebase email-verification action. Keep the JSON outside the repository and web root.
+
+Restart Express after setting the environment. `GET /api/signup-verification` reports `otp` when both credential sets are configured. With either configuration absent, new accounts continue to receive the Firebase verification link. Sign-in and password recovery still use Firebase.

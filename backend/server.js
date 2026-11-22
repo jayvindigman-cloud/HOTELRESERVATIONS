@@ -6,6 +6,7 @@ const pool = require("./db");
 const { initializeMenu, registerMenu, menuOrderLines } = require("./menu");
 const { account, admin, verifiedEmail, privateList, initializeGuestFeatures, priceExtras, registerGuestFeatures } = require("./guest-features");
 const { router: keysRouter, initializeKeys, ensureRoomKey, backfillRoomKeys } = require("./keys");
+const { initializeSignupOtp, registerSignupOtp } = require("./signup-otp");
 
 const nodemailer = require("nodemailer");
 
@@ -718,6 +719,7 @@ app.get("/api/admin/notifications", account, admin, wrap(async (_req, res) => {
 }));
 
 registerGuestFeatures(app, wrap);
+registerSignupOtp(app, wrap, sendEmail, Boolean(transporter));
 registerMenu(app, wrap, account, admin);
 
 process.on("unhandledRejection", (e) => console.error("Unhandled rejection:", e));
@@ -727,6 +729,7 @@ pool.query("SELECT 1")
   .then(() => initializeKeys())
   .then(() => backfillRoomKeys())
   .then(() => initializeGuestFeatures())
+  .then(() => initializeSignupOtp())
   .then(() => initializeMenu())
   .then(() => {
     const port = Number(process.env.PORT || 8080);
