@@ -464,7 +464,9 @@ body:has(.room-details[open]) { overflow: hidden; }
 }
 .admin-extra-photo-preview { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .admin-extra-photo-preview img { width: 112px; height: 75px; object-fit: cover; border-radius: 8px; }
-.booking-option img.booking-extra-photo { width: 64px; height: 52px; flex: none; object-fit: cover; border-radius: 8px; }
+.booking-option.booking-extra-option { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; }
+.booking-option img.booking-extra-photo { grid-column: 1 / -1; display: block; width: 100%; height: clamp(104px, 23vw, 154px); object-fit: cover; border-radius: 9px; }
+.booking-extra-option > span { overflow-wrap: anywhere; }
 .guest-review-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr)); gap: 8px; margin: 12px 0 0; text-align: left; }
 .admin-review-list { padding: 0; list-style: none; }
 .review-panel { display: flex; align-items: flex-start; gap: 8px; min-width: 0; padding: 8px; border-radius: 10px; box-shadow: none; }

@@ -1827,7 +1827,8 @@ export default function HotelInfo({ user, onLogin, onGoogleLogin, onSignup, auth
                         const quantity = selectedExtras[item.id];
                         return (
                           <div key={item.id} className="booking-room-choice">
-                            <label className="booking-option">
+                            <label className="booking-option booking-extra-option">
+                              {item.image && <img className="booking-extra-photo" src={item.image} alt="" referrerPolicy="no-referrer" />}
                               <input type="checkbox" checked={Boolean(quantity)} onChange={(event) => {
                                 const checked = event.target.checked;
                                 setSelectedExtras((previous) => {
@@ -1837,7 +1838,6 @@ export default function HotelInfo({ user, onLogin, onGoogleLogin, onSignup, auth
                                   return next;
                                 });
                               }} />
-                              {item.image && <img className="booking-extra-photo" src={item.image} alt="" loading="lazy" referrerPolicy="no-referrer" />}
                               <span><strong>{item.name}</strong><small>{peso(item.price)} · {extraUnits[item.unit]}</small>
                                 <span>{item.description}</span>
                                 {quantity && <strong>{peso(extraAmount(item))}</strong>}
