@@ -632,6 +632,7 @@ function GuestNavIcon({ name }) {
     home: "m3 11 9-7 9 7M6 10v10h12V10m-8 10v-5h4v5",
     rooms: "M3 18v-7m18 7v-7M3 16h18M5 15V8h14v7M8 11h8",
     stays: "M5 5h14v15H5zM8 3v4m8-4v4M5 9h14m-10 4h6m-6 3h4",
+    food: "M4 3v5a3 3 0 0 0 6 0V3M7 3v18m12-18c-3 2-4 6-4 9h4m0-9v18",
     more: "M4 6h16M4 12h16M4 18h16",
   };
   return <svg aria-hidden="true" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d={paths[name]} /></svg>;
@@ -1133,17 +1134,17 @@ export default function HotelInfo({ user, onLogin, onGoogleLogin, onSignup, auth
           {(guestUpdates.reservations || guestUpdates.orders) && <span className="guest-update-dot" aria-hidden="true" />}
         </button>
         <nav className="guest-mobile-navigation" aria-label="Hotel navigation">
-          <a href="#home"><GuestNavIcon name="home" />Home</a>
-          <a href="#rooms"><GuestNavIcon name="rooms" />Rooms</a>
           <button type="button" className="guest-alert-anchor" aria-label={guestUpdates.reservations ? "My Stays, reservation confirmed" : "My Stays"} onClick={() => setAccountTab("reservations")}>
             <GuestNavIcon name="stays" />My Stays
             {guestUpdates.reservations && <span className="guest-update-dot" aria-hidden="true" />}
           </button>
+          <a href="#home"><GuestNavIcon name="home" />Home</a>
+          <a href="#rooms"><GuestNavIcon name="rooms" />Rooms</a>
+          <a href="#food"><GuestNavIcon name="food" />Food &amp; Drink</a>
           <details className="guest-nav-more">
             <summary><GuestNavIcon name="more" />More</summary>
             <div>
               <a href="#hotel" onClick={closeGuestMenu}>The Hotel</a>
-              <a href="#food" onClick={closeGuestMenu}>Food &amp; Drink</a>
               <a href="#reviews" onClick={closeGuestMenu}>Reviews</a>
               <a href="#contact" onClick={closeGuestMenu}>Contact</a>
               <button type="button" onClick={(event) => { closeGuestMenu(event); handleOpenModal(); }}>Book a room</button>

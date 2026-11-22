@@ -902,14 +902,14 @@ body:has(.guest-account-dialog[open], .hotel-reservation, .hotel-receipt) { over
   .guest-site-shell .hotel-navigation .guest-mobile-navigation {
     display: grid !important;
     flex: 0 0 100%;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 3px;
     max-height: none;
     overflow: visible;
     padding: 3px;
     border-radius: 15px;
   }
-  .guest-mobile-navigation > :is(a, button), .guest-nav-more > summary {
+  .hotel-navigation .guest-mobile-navigation > :is(a, button), .guest-nav-more > summary {
     display: flex !important;
     flex-direction: column;
     align-items: center;
@@ -926,6 +926,7 @@ body:has(.guest-account-dialog[open], .hotel-reservation, .hotel-receipt) { over
     font-size: .74rem;
     font-weight: 650;
     line-height: 1.1;
+    white-space: normal;
     text-align: center;
     text-decoration: none;
     cursor: pointer;
