@@ -372,7 +372,7 @@ function FoodOrder({ cart, setCart, menu, addToCart, user, onClose, notice, refr
         body: JSON.stringify({
           guestName: user.name || user.displayName || "",
           email: user.email,
-          phone: phone.replace(/[\s-]/g, ""),
+          phone,
           roomNumber: roomNumber.trim(),
           notes: notes.trim(),
           items: lines.map(({ id, qty }) => ({ id, qty })),
@@ -542,10 +542,13 @@ function FoodOrder({ cart, setCart, menu, addToCart, user, onClose, notice, refr
                   id="orderPhone"
                   className="bb-input"
                   type="tel"
-                  placeholder="09XX XXX XXXX"
+                  placeholder="09171234567"
                   required
-                  pattern="^(\+?63|0)9[\d\s\-]{9,12}$"
-                  title="Enter a mobile number like 0917 123 4567"
+                  inputMode="numeric"
+                  minLength={11}
+                  maxLength={11}
+                  pattern="[0-9]{11}"
+                  title="Enter exactly 11 digits, for example 09171234567."
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                 />
@@ -1020,7 +1023,7 @@ export default function HotelInfo({ user, onLogin, onGoogleLogin, onSignup, auth
         body: JSON.stringify({
           guestName: formData.guestName,
           email: formData.email,
-          phone: formData.phone.replace(/[\s-]/g, ""),
+          phone: formData.phone,
           rooms: bookedUnits.map(({ roomType, guests, key }, roomIndex) => ({
             roomType, guests, quantity: 1,
             guestNames: Array.from({ length: guests }, (_, personIndex) =>
@@ -1823,10 +1826,13 @@ export default function HotelInfo({ user, onLogin, onGoogleLogin, onSignup, auth
                         className="bb-input"
                         type="tel"
                         name="phone"
-                        placeholder="09XX XXX XXXX"
+                        placeholder="09171234567"
                         required
-                        pattern="^(\+?63|0)9[\d\s\-]{9,12}$"
-                        title="Enter a mobile number like 0917 123 4567. We text your booking updates to this number."
+                        inputMode="numeric"
+                        minLength={11}
+                        maxLength={11}
+                        pattern="[0-9]{11}"
+                        title="Enter exactly 11 digits, for example 09171234567."
                         value={formData.phone}
                         onChange={handleInputChange}
                       />

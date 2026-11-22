@@ -80,6 +80,8 @@ app.use("/api/keys", account, admin, keysRouter);
 const PAYMENTS = ["GCash", "Cash",];
 const STATUSES = ["Pending", "Confirmed", "Cancelled"];
 const PAYMENT_STATUSES = ["Unpaid", "Paid"];
+const validContact = (value) => typeof value === "string" && value.length === 11 && /^[0-9]+$/.test(value);
+const invalidContact = { message: "Contact number must contain exactly 11 digits." };
 const ORDER_STATUSES = ["Pending", "Preparing", "Served", "Cancelled"];
 
 const wrap = (fn) => (req, res) =>
@@ -295,7 +297,8 @@ app.post("/api/reservations", account, bookingOwner, wrap(async (req, res) => {
     guests = 1, paymentMethod = "GCash", paymentReference = null,
     voucherCode = null, notes = null, extraIds = [], extraSelections, expectedTotal, rooms = [{ roomType, guests: Number(guests), quantity: 1 }] } = req.body;
 
-  if (!guestName || !email || !phone || !checkIn || !checkOut) {
+  if (!validContact(phone)) return res.status(400).json(invalidContact);
+  if (!guestName || !email || !checkIn || !checkOut) {
     return res.status(400).json({ message: "Missing required fields." });
   }
   if (!PAYMENTS.includes(paymentMethod)) return res.status(400).json({ message: "Invalid payment method." });
@@ -439,7 +442,8 @@ app.post("/api/reservations", account, bookingOwner, wrap(async (req, res) => {
 
 app.put("/api/reservations/:id", account, admin, wrap(async (req, res) => {
   const { guestName, email, phone, roomType, checkIn, checkOut, totalAmount, status, roomNumber } = req.body;
-  if (!guestName || !email || !phone || !roomType || !checkIn || !checkOut)
+  if (!validContact(phone)) return res.status(400).json(invalidContact);
+  if (!guestName || !email || !roomType || !checkIn || !checkOut)
     return res.status(400).json({ message: "Missing required fields." });
   if (status && !STATUSES.includes(status)) return res.status(400).json({ message: "Invalid status." });
 
@@ -663,7 +667,8 @@ app.get("/api/orders", account, privateList, wrap(async (req, res) => {
 
 app.post("/api/orders", account, bookingOwner, wrap(async (req, res) => {
   const { guestName, email, phone, roomNumber = null, items, notes = null } = req.body;
-  if (!guestName || !email || !phone) return res.status(400).json({ message: "Missing required fields." });
+  if (!validContact(phone)) return res.status(400).json(invalidContact);
+  if (!guestName || !email) return res.status(400).json({ message: "Missing required fields." });
   if (!Array.isArray(items) || items.length === 0) return res.status(400).json({ message: "Your order is empty." });
 
   const connection = await pool.getConnection();

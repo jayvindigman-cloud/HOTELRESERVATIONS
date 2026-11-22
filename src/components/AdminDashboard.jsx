@@ -1325,8 +1325,13 @@ export default function AdminDashboard({ onLogout, currentUser }) {
                   Phone:
                 </label>
                 <input
-                  type="text"
+                  type="tel"
                   name="phone"
+                  inputMode="numeric"
+                  minLength={11}
+                  maxLength={11}
+                  pattern="[0-9]{11}"
+                  title="Enter exactly 11 digits."
                   required
                   value={formData.phone}
                   onChange={handleInputChange}
@@ -1590,8 +1595,13 @@ export default function AdminDashboard({ onLogout, currentUser }) {
                   Phone:
                 </label>
                 <input
-                  type="text"
+                  type="tel"
                   name="phone"
+                  inputMode="numeric"
+                  minLength={11}
+                  maxLength={11}
+                  pattern="[0-9]{11}"
+                  title="Enter exactly 11 digits."
                   required
                   value={formData.phone}
                   onChange={handleInputChange}
