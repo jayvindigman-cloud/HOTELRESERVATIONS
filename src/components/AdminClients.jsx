@@ -1,3 +1,4 @@
+import { reservationGuests } from "./reservationGuests";
 ﻿import { useEffect, useRef, useState } from "react";
 import { accountFetch, formatPeso, hotelToday, readJson } from "../hotel-api";
 
@@ -28,7 +29,7 @@ export default function AdminClients({ api, reservations, onPasswordHelp, onOpen
     const lastDate = booking.actualCheckOut || booking.checkOut;
     return (!fromDate || lastDate > fromDate) &&
       (!toDate || (booking.checkIn && booking.checkIn <= toDate)) &&
-      [booking.guestName, booking.email, booking.phone, booking.id, ...booking.guestNames]
+      [booking.guestName, booking.email, booking.phone, booking.id, ...booking.guestNames, ...booking.guestPhones]
         .some((value) => String(value || "").toLowerCase().includes(search));
   };
   const clients = [...groups.entries()].flatMap(([key, bookings]) => {
@@ -120,7 +121,7 @@ function BookingDetails({ booking, onOpen }) {
     <strong>{booking.roomType} {"\u00b7"} {booking.status}</strong>
     <p>{booking.id}{booking.roomNumber && " · Room " + booking.roomNumber}</p>
     <p>Booked {String(booking.createdAt || "").slice(0, 10)} {"\u00b7"} Stay {booking.checkIn} to {booking.actualCheckOut || booking.checkOut}</p>
-    <p>Occupants: {(booking.guestNames.length ? booking.guestNames : [booking.guestName]).join(", ")}</p>
+    <div>Occupants<ul>{reservationGuests(booking).map((guest, index) => <li key={index}>{guest}</li>)}</ul></div>
     <p>{formatPeso(booking.totalAmount)} {"\u00b7"} {booking.paymentMethod} {"\u00b7"} {booking.paymentStatus}</p>
     {booking.extras.length > 0 && <p>Extras: {booking.extras.map((item) => item.name + " (" + formatPeso(item.amount) + ")").join(", ")}</p>}
     {booking.notes && <p>Notes: {booking.notes}</p>}

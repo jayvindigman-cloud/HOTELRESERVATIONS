@@ -1,4 +1,4 @@
-import { ChangePassword } from "./PasswordRecovery";
+import { reservationGuests } from "./reservationGuests";
 import { foodItems } from "../data/hotelCatalog";
 ﻿import { useCallback, useEffect, useRef, useState } from "react";
 import { sendEmailVerification } from "firebase/auth";
@@ -172,7 +172,6 @@ export default function GuestAccount({ api, user, rooms, menu, initialTab = "pro
               <button className="hotel-action" disabled={!!action}>Save profile</button>
             </div>
           </form>
-          {auth.currentUser?.providerData.some((provider) => provider.providerId === "password") && <ChangePassword email={user.email} />}
           </>
         ) : loading ? <p role="status">Loading bookings…</p> : !verified ? (
           <div className="account-notice">
@@ -211,6 +210,7 @@ export default function GuestAccount({ api, user, rooms, menu, initialTab = "pro
                   {["Confirmed", "Checked out"].includes(item.status) && item.roomNumber && (
                     <p className="account-room-assignment"><span>Assigned room</span><strong>{item.roomNumber}</strong></p>
                   )}
+                  <ul aria-label="Room occupants">{reservationGuests(item).map((guest, index) => <li key={index}>{guest}</li>)}</ul>
                   {item.status === "Pending" && <p>Room number will appear after the hotel approves your booking.</p>}
                   <p>{item.checkIn} to {item.checkOut} · {item.nights} night(s)</p>
                   {item.actualCheckOut && <p>Checked out {item.actualCheckOut}</p>}

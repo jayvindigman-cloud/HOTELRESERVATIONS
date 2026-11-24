@@ -1,3 +1,4 @@
+const { validPhoto } = require("./room-photo");
 const pool = require("./db");
 
 const firebaseKey = process.env.FIREBASE_WEB_API_KEY || "AIzaSyAvLYLd3Q6FeAHhE-Xw6WO1hPOdfXgREYA";
@@ -68,20 +69,7 @@ function privateList(req, res, next) {
 const extraFields = "id, name, description, price, unit, is_active AS active";
 const units = new Set(["stay", "night", "guest", "item"]);
 
-function validExtraImage(value) {
-  if (typeof value !== "string") return false;
-  if (!value) return true;
-  if (value.startsWith("data:")) {
-    return value.length <= 85000 && /^data:image\/jpeg;base64,\/9j\/[A-Za-z0-9+/]+={0,2}$/.test(value);
-  }
-  if (value.length > 2048) return false;
-  try {
-    const url = new URL(value);
-    return url.protocol === "https:" && !url.username && !url.password;
-  } catch {
-    return false;
-  }
-}
+
 
 async function initializeGuestFeatures() {
   await pool.query(`CREATE TABLE IF NOT EXISTS guest_directory_profiles (
@@ -113,7 +101,7 @@ async function initializeGuestFeatures() {
     comment VARCHAR(1000) NOT NULL, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
   ) CHARACTER SET utf8mb4`);
   const [roomColumns] = await pool.query("SHOW COLUMNS FROM room_types");
-  for (const [field, type] of [["image", "VARCHAR(2048)"], ["bed", "VARCHAR(100)"], ["description", "VARCHAR(1000)"]]) {
+  for (const [field, type] of [["image", "MEDIUMTEXT"], ["bed", "VARCHAR(100)"], ["description", "VARCHAR(1000)"]]) {
     if (!roomColumns.some((column) => column.Field === field)) {
       try {
         await pool.query("ALTER TABLE room_types ADD COLUMN ?? " + type + " NULL", [field]);
@@ -122,8 +110,11 @@ async function initializeGuestFeatures() {
       }
     }
   }
+  if (roomColumns.some(({ Field, Type }) => Field === "image" && Type.toLowerCase() !== "mediumtext")) {
+    await pool.query("ALTER TABLE room_types MODIFY image MEDIUMTEXT NULL");
+  }
   const [columns] = await pool.query("SHOW COLUMNS FROM reservations");
-  for (const [field, type] of [["extras_snapshot", "JSON"], ["actual_check_out", "DATE"], ["guest_names", "JSON"]]) {
+  for (const [field, type] of [["extras_snapshot", "JSON"], ["actual_check_out", "DATE"], ["guest_names", "JSON"], ["guest_phones", "JSON"]]) {
     if (columns.some((column) => column.Field === field)) continue;
     try {
       await pool.query("ALTER TABLE reservations ADD COLUMN ?? " + type + " NULL", [field]);
@@ -270,7 +261,7 @@ function registerGuestFeatures(app, wrap) {
         !units.has(unit) || typeof active !== "boolean") {
       return res.status(400).json({ message: "Enter a valid service name, price and billing unit." });
     }
-    if (image !== undefined && !validExtraImage(image)) {
+    if (image !== undefined && !validPhoto(image)) {
       return res.status(400).json({ message: "Choose a photo or enter a direct HTTPS image link." });
     }
     const values = [name.trim(), description.trim(), price, unit, active];

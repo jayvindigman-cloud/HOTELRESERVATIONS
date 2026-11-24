@@ -1,3 +1,4 @@
+const { validPhoto } = require("./room-photo");
 ﻿const pool = require("./db");
 const defaults = require("../src/data/menu.json");
 
@@ -5,6 +6,10 @@ const fields = "id, title, category, price, image, description AS `desc`, availa
 const statuses = new Set(["available", "out_of_stock", "unavailable"]);
 
 async function initializeMenu() {
+  const [[orderItemsColumn]] = await pool.query("SHOW COLUMNS FROM food_orders LIKE 'items'");
+  if (orderItemsColumn.Type.toLowerCase() !== "mediumtext") {
+    await pool.query("ALTER TABLE food_orders MODIFY items MEDIUMTEXT NOT NULL");
+  }
   const [columns] = await pool.query("SHOW COLUMNS FROM food_orders LIKE 'served_at'");
   if (!columns.length) {
     try {
@@ -15,11 +20,15 @@ async function initializeMenu() {
   }
   await pool.query(`CREATE TABLE IF NOT EXISTS menu_items (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, title VARCHAR(120) NOT NULL UNIQUE,
-    category VARCHAR(45) NOT NULL, price DECIMAL(10,2) NOT NULL, image VARCHAR(2048) NULL,
+    category VARCHAR(45) NOT NULL, price DECIMAL(10,2) NOT NULL, image MEDIUMTEXT NULL,
     description VARCHAR(1000) NOT NULL, availability VARCHAR(20) NOT NULL DEFAULT 'available'
   ) ENGINE=InnoDB`);
   const [[{ count }]] = await pool.query("SELECT COUNT(*) AS count FROM menu_items");
   if (count) return;
+  const [[imageColumn]] = await pool.query("SHOW COLUMNS FROM menu_items LIKE 'image'");
+  if (imageColumn.Type.toLowerCase() !== "mediumtext") {
+    await pool.query("ALTER TABLE menu_items MODIFY image MEDIUMTEXT NULL");
+  }
   const rows = defaults.map((item) => [item.title, item.category, Number(item.price.match(/[\d,.]+/)[0].replaceAll(",", "")), item.image, item.desc]);
   await pool.query(`INSERT IGNORE INTO menu_items (title, category, price, image, description) VALUES ?`, [rows]);
 }
@@ -33,18 +42,13 @@ function registerMenu(app, wrap, account, admin) {
   const save = wrap(async (req, res) => {
     const { title, category, price, image, desc, availability } = req.body;
     const valid = (value, size) => typeof value === "string" && value.trim() && value.trim().length <= size;
-    let photo = null;
-    if (image) {
-      try {
-        if (valid(image, 2048) && new URL(image).protocol === "https:") photo = image.trim();
-      } catch {}
-    }
-    if (!valid(title, 120) || !valid(category, 45) || (image && !photo) ||
+    const photo = typeof image === "string" ? image.trim() : image;
+    if (!valid(title, 120) || !valid(category, 45) || (image && !validPhoto(photo)) ||
         typeof desc !== "string" || desc.length > 1000 || !Number.isFinite(price) ||
         price <= 0 || price > 99999999 || !statuses.has(availability)) {
-      return res.status(400).json({ message: "Enter a valid item name, category, price and availability. Photos must use HTTPS." });
+      return res.status(400).json({ message: "Enter a valid item name, category, price and availability. Upload a photo or enter an HTTPS image link." });
     }
-    const values = [title.trim(), category.trim(), price, photo, desc.trim(), availability];
+    const values = [title.trim(), category.trim(), price, photo || null, desc.trim(), availability];
     try {
       if (req.params.id) {
         const [result] = await pool.query(

@@ -5,6 +5,7 @@ const path = require("node:path");
 const express = require("express");
 const cors = require("cors");
 const pool = require("./db");
+const { validPhoto } = require("./room-photo");
 const { initializeMenu, registerMenu, menuOrderLines } = require("./menu");
 const { account, admin, verifiedEmail, privateList, initializeGuestFeatures, priceExtras, registerGuestFeatures } = require("./guest-features");
 const { router: keysRouter, initializeKeys, ensureRoomKey, backfillRoomKeys, releaseCheckoutKeys, sweepCheckoutKeys } = require("./keys");
@@ -56,7 +57,7 @@ function reservationRows(r, roomNumber) {
   return [
     ["Booking reference", r.code],
     ["Guest", r.guestName],
-    ...(r.guestNames?.length ? [["Room occupants", r.guestNames.join(", ")]] : []),
+    ...(r.guestNames?.length ? [["Room occupants", r.guestNames.map((name, index) => r.guestPhones?.[index] ? name + " \u00b7 " + r.guestPhones[index] : name).join(", ")]] : []),
     ["Room type", r.roomType],
     ["Room number", roomNumber || "Assigned once confirmed"],
     ["Check-in", r.checkIn],
@@ -93,7 +94,7 @@ const wrap = (fn) => (req, res) =>
 const RESERVATION_SELECT = `
   SELECT r.id, r.reservation_code AS code, r.guest_name AS guestName, r.email, r.phone,
          t.name AS roomType, r.check_in AS checkIn, r.check_out AS checkOut, r.actual_check_out AS actualCheckOut,
-         r.guests, r.guest_names AS guestNames, r.nights, r.total_amount AS totalAmount,
+         r.guests, r.guest_names AS guestNames, r.guest_phones AS guestPhones, r.nights, r.total_amount AS totalAmount,
          r.payment_method AS paymentMethod, r.payment_reference AS paymentReference,
          r.payment_status AS paymentStatus, CASE WHEN r.actual_check_out IS NOT NULL THEN 'Checked out' ELSE r.status END AS status, r.notes, r.room_type_id AS roomId,
          r.room_number AS roomNumber, r.voucher_code AS voucherCode,
@@ -104,7 +105,8 @@ function parseReservation(row) {
   if (!row) return null;
   const extras = typeof row.extras === "string" ? JSON.parse(row.extras) : row.extras;
   const guestNames = typeof row.guestNames === "string" ? JSON.parse(row.guestNames) : row.guestNames;
-  return { ...row, extras: extras || [], guestNames: guestNames || [] };
+  const guestPhones = typeof row.guestPhones === "string" ? JSON.parse(row.guestPhones) : row.guestPhones;
+  return { ...row, extras: extras || [], guestNames: guestNames || [], guestPhones: guestPhones || [] };
 }
 
 async function findReservation(id) {
@@ -147,6 +149,50 @@ app.get("/api/rooms", wrap(async (req, res) => {
   res.json(rows);
 }));
 
+const validDate = (value) => {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(value);
+  return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+};
+
+const unavailableMessage = (name) => name + " is unavailable for those dates at the quantity you selected. Try fewer rooms or different dates.";
+
+async function availableForStay(db, room, checkIn, checkOut) {
+  const [overlaps] = await db.query(
+    `SELECT check_in, COALESCE(actual_check_out, check_out) AS check_out FROM reservations
+     WHERE room_type_id = ? AND status IN ('Pending', 'Confirmed')
+       AND check_in < ? AND COALESCE(actual_check_out, check_out) > ?`,
+    [room.id, checkOut, checkIn]
+  );
+  const events = new Map();
+  for (const stay of overlaps) {
+    const start = stay.check_in < checkIn ? checkIn : stay.check_in;
+    events.set(start, (events.get(start) || 0) + 1);
+    events.set(stay.check_out, (events.get(stay.check_out) || 0) - 1);
+  }
+  let occupied = 0;
+  let peak = 0;
+  for (const [date, change] of [...events].sort(([first], [second]) => first.localeCompare(second))) {
+    if (date >= checkOut) break;
+    occupied += change;
+    peak = Math.max(peak, occupied);
+  }
+  return Math.max(0, room.total_units - peak);
+}
+
+app.get("/api/rooms/stay-availability", wrap(async (req, res) => {
+  const { room, checkIn, checkOut } = req.query;
+  if (typeof room !== "string" || !room.trim() || room.length > 150 ||
+      !validDate(checkIn) || !validDate(checkOut) || checkIn >= checkOut) {
+    return res.status(400).json({ message: "Choose a room type and valid stay dates." });
+  }
+  const [[roomType]] = await pool.query(
+    "SELECT id, total_units FROM room_types WHERE name = ? AND is_active = 1", [room]
+  );
+  const availableRooms = roomType ? await availableForStay(pool, roomType, checkIn, checkOut) : 0;
+  res.set("Cache-Control", "no-store").json({ availableRooms });
+}));
+
 app.get("/api/rooms/availability", wrap(async (req, res) => {
   const { room, month } = req.query;
   if (typeof room !== "string" || !room.trim() || room.length > 150 ||
@@ -166,7 +212,7 @@ app.get("/api/rooms/availability", wrap(async (req, res) => {
 
   const [stays] = await pool.query(
     `SELECT check_in, COALESCE(actual_check_out, check_out) AS check_out FROM reservations
-     WHERE room_type_id = ? AND status = 'Confirmed'
+     WHERE room_type_id = ? AND status IN ('Pending', 'Confirmed')
        AND check_in < ? AND COALESCE(actual_check_out, check_out) > ?`,
     [roomType.id, dateKey(end), dateKey(start)]
   );
@@ -185,16 +231,13 @@ app.get("/api/rooms/availability", wrap(async (req, res) => {
 const saveRoom = wrap(async (req, res) => {
   const { name, category, price, capacity, totalUnits, isActive, image, bed, description } = req.body;
   const text = (value, max) => typeof value === "string" && value.trim().length > 0 && value.trim().length <= max;
-  let validImage = !image;
-  if (text(image, 2048)) {
-    try { validImage = new URL(image).protocol === "https:"; } catch {}
-  }
+  const validImage = !image || validPhoto(typeof image === "string" ? image.trim() : image);
   if (!text(name, 100) || !text(category, 30) || !validImage ||
       !Number.isFinite(price) || price < 0 || price > 99999999 ||
       !Number.isInteger(capacity) || capacity < 1 || capacity > 255 ||
       !Number.isInteger(totalUnits) || totalUnits < 0 || totalUnits > 65535 ||
       (bed && !text(bed, 100)) || (description && !text(description, 1000))) {
-    return res.status(400).json({ message: "Enter valid room details and an HTTPS photo URL if provided." });
+    return res.status(400).json({ message: "Enter valid room details and upload a photo or enter an HTTPS image link if provided." });
   }
   const values = [name.trim(), category.trim(), price, capacity, totalUnits, isActive === false ? 0 : 1,
     image ? image.trim() : null, bed ? bed.trim() : null, description ? description.trim() : null];
@@ -305,11 +348,6 @@ app.post("/api/reservations", account, bookingOwner, wrap(async (req, res) => {
   if (paymentMethod === "GCash" && String(paymentReference || "").trim().length < 6) {
     return res.status(400).json({ message: "Enter the GCash reference number from your payment." });
   }
-  const validDate = (value) => {
-    if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-    const parsed = new Date(value);
-    return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
-  };
   if (!validDate(checkIn) || !validDate(checkOut) || checkIn >= checkOut) {
     return res.status(400).json({ message: "Choose valid stay dates. Check-out must follow check-in." });
   }
@@ -327,6 +365,12 @@ app.post("/api/reservations", account, bookingOwner, wrap(async (req, res) => {
       item.guestNames.some((name) => typeof name !== "string" || !name.trim() || name.trim().length > 100);
   })) {
     return res.status(400).json({ message: "Enter the full name of each guest staying in every room." });
+  }
+
+  if (rooms.some((item) => item.guestPhones === undefined
+    ? item.guests > 1
+    : !Array.isArray(item.guestPhones) || item.guestPhones.length !== item.guests || !Array.from(item.guestPhones).every(validContact))) {
+    return res.status(400).json({ message: "Enter an 11-digit contact number for every guest." });
   }
 
   const extrasRequested = extraSelections ?? (Array.isArray(extraIds) ? [...new Set(extraIds)].map((id) => ({ id, quantity: 1 })) : null);
@@ -354,23 +398,9 @@ app.post("/api/reservations", account, bookingOwner, wrap(async (req, res) => {
 
     for (const room of catalog) {
       const requested = selections.filter((item) => item.room.id === room.id).reduce((count, item) => count + item.quantity, 0);
-      const [overlaps] = await conn.query(`SELECT check_in, COALESCE(actual_check_out, check_out) AS check_out FROM reservations
-        WHERE room_type_id = ? AND status = 'Confirmed' AND check_in < ? AND COALESCE(actual_check_out, check_out) > ?`,
-      [room.id, checkOut, checkIn]);
-      const events = new Map([[checkIn, 0]]);
-      for (const stay of overlaps) {
-        const start = stay.check_in < checkIn ? checkIn : stay.check_in;
-        events.set(start, (events.get(start) || 0) + 1);
-        events.set(stay.check_out, (events.get(stay.check_out) || 0) - 1);
-      }
-      let occupied = 0;
-      for (const [date, change] of [...events].sort(([first], [second]) => first.localeCompare(second))) {
-        if (date >= checkOut) break;
-        occupied += change;
-        if (occupied + requested > room.total_units) {
-          await conn.rollback();
-          return res.status(409).json({ message: room.name + " does not have enough rooms for those dates." });
-        }
+      if (requested > await availableForStay(conn, room, checkIn, checkOut)) {
+        await conn.rollback();
+        return res.status(409).json({ message: unavailableMessage(room.name) });
       }
     }
 
@@ -387,7 +417,7 @@ app.post("/api/reservations", account, bookingOwner, wrap(async (req, res) => {
       appliedCode = voucher.code;
     }
 
-    for (const { room, guests, quantity, guestNames } of selections) {
+    for (const { room, guests, quantity, guestNames, guestPhones } of selections) {
       const extras = await priceExtras(conn, extrasRequested, nights, guests);
       if (!extras) {
         await conn.rollback();
@@ -405,11 +435,11 @@ app.post("/api/reservations", account, bookingOwner, wrap(async (req, res) => {
         const [result] = await conn.query(`INSERT INTO reservations
           (reservation_code, room_type_id, guest_name, email, phone, check_in, check_out,
            guests, nights, total_amount, payment_method, payment_reference, voucher_code,
-           discount_amount, status, notes, extras_snapshot, guest_names)
-          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?, 'Pending', ?, ?, ?)`,
+           discount_amount, status, notes, extras_snapshot, guest_names, guest_phones)
+          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?, 'Pending', ?, ?, ?, ?)`,
           [code, room.id, guestName, email.trim(), phone, checkIn, checkOut, guests, nights, total,
             paymentMethod, paymentMethod === "GCash" ? String(paymentReference).trim() : null,
-            appliedCode, discount / 100, notes, JSON.stringify(extras), JSON.stringify(guestNames ? guestNames.map((name) => name.trim()) : [guestName.trim()])]);
+            appliedCode, discount / 100, notes, JSON.stringify(extras), JSON.stringify(guestNames ? guestNames.map((name) => name.trim()) : [guestName.trim()]), JSON.stringify(guestPhones || [phone])]);
         ids.push(result.insertId);
       }
     }

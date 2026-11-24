@@ -1,34 +1,8 @@
+import { preparePhoto } from "./preparePhoto";
 ﻿import { useCallback, useEffect, useState } from "react";
 import { accountFetch, readJson, formatPeso, extraUnits } from "../hotel-api";
 
 const emptyExtra = { name: "", description: "", price: "", unit: "stay", active: true, image: "" };
-
-async function preparePhoto(file) {
-  if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 10 * 1024 * 1024) {
-    throw new Error("Choose a JPG, PNG, or WebP photo up to 10 MB.");
-  }
-  const url = URL.createObjectURL(file);
-  try {
-    const image = new Image();
-    image.src = url;
-    await image.decode();
-    const scale = Math.min(1, 640 / Math.max(image.naturalWidth, image.naturalHeight));
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
-    canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
-    const context = canvas.getContext("2d");
-    context.fillStyle = "#f9f7ef";
-    context.fillRect(0, 0, canvas.width, canvas.height);
-    context.drawImage(image, 0, 0, canvas.width, canvas.height);
-    for (const quality of [0.8, 0.64, 0.46, 0.28]) {
-      const photo = canvas.toDataURL("image/jpeg", quality);
-      if (photo.length <= 85000) return photo;
-    }
-    throw new Error("This photo is too detailed to save. Choose a smaller photo.");
-  } finally {
-    URL.revokeObjectURL(url);
-  }
-}
 
 export default function AdminExtras({ api }) {
   const [items, setItems] = useState([]);

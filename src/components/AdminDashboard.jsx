@@ -1,3 +1,4 @@
+import AdminPhotoUpload from "./AdminPhotoUpload";
 import FoodOrderReport, { foodOrderHistoryDate } from "./FoodOrderReport";
 import AdminCustomerService from "./AdminCustomerService";
 import AdminClients from "./AdminClients";
@@ -49,6 +50,7 @@ export default function AdminDashboard({ onLogout, currentUser }) {
   const emptyForm = {
     guestName: "",
     companions: "",
+    companionPhones: "",
     email: "",
     phone: "",
     roomType: "Standard Room",
@@ -122,6 +124,7 @@ export default function AdminDashboard({ onLogout, currentUser }) {
           discountAmount: Number(res.discountAmount || 0),
           extras: res.extras || [],
           guestNames: res.guestNames || [],
+          guestPhones: res.guestPhones || [],
           guests: Number(res.guests || 1),
           createdAt: res.createdAt,
           createdEpoch: res.createdEpoch,
@@ -141,6 +144,7 @@ export default function AdminDashboard({ onLogout, currentUser }) {
   const handleCreateBooking = async (e) => {
     e.preventDefault();
     const names = [formData.guestName.trim(), ...formData.companions.split(/\r?\n/).map((name) => name.trim()).filter(Boolean)];
+    const phones = [formData.phone, ...formData.companionPhones.split(/\r?\n/).map((phone) => phone.trim()).filter(Boolean)];
     try {
       const response = await accountFetch(API + "/reservations", {
         method: "POST",
@@ -154,7 +158,7 @@ export default function AdminDashboard({ onLogout, currentUser }) {
           checkOut: formData.checkOut,
           totalAmount: formData.totalAmount,
           status: formData.status,
-          rooms: [{ roomType: formData.roomType, guests: names.length, quantity: 1, guestNames: names }],
+          rooms: [{ roomType: formData.roomType, guests: names.length, quantity: 1, guestNames: names, guestPhones: phones }],
           paymentMethod: "Cash",
         }),
       });
@@ -1324,6 +1328,11 @@ export default function AdminDashboard({ onLogout, currentUser }) {
                 <textarea name="companions" rows={2} className="bb-input form-control"
                   value={formData.companions} onChange={handleInputChange} />
               </label>
+              <label className="booking-guest-name">
+                Companion contact numbers (one 11-digit number per line, in the same order)
+                <textarea name="companionPhones" rows={2} inputMode="numeric" className="bb-input form-control"
+                  value={formData.companionPhones} onChange={handleInputChange} />
+              </label>
               <div style={{ marginBottom: "12px" }}>
                 <label
                   style={{
@@ -1906,6 +1915,7 @@ const adErrorBox = {
 };
 
 function AdminRoomsTab({ rooms, onSaved }) {
+  const [uploading, setUploading] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -1934,6 +1944,7 @@ function AdminRoomsTab({ rooms, onSaved }) {
   };
 
   const closeEdit = () => {
+    if (uploading) return;
     setEditing(null);
     setForm(null);
   };
@@ -1945,6 +1956,7 @@ function AdminRoomsTab({ rooms, onSaved }) {
 
   const save = async (e) => {
     e.preventDefault();
+    if (uploading) return;
     setSaving(true);
     setError("");
     try {
@@ -2040,8 +2052,9 @@ function AdminRoomsTab({ rooms, onSaved }) {
                 <input style={adInput} type="number" min="0" name="totalUnits" required value={form.totalUnits} onChange={change} />
               </div>
               <label style={adLabel}>Photo URL
-                <input style={adInput} type="url" name="image" maxLength={2048} value={form.image} onChange={change} placeholder="https://" />
+                <input style={adInput} type="url" name="image" maxLength={2048} value={form.image.startsWith("data:") ? "" : form.image} onChange={change} disabled={uploading} placeholder="https://" />
               </label>
+              <AdminPhotoUpload value={form.image} onChange={(image) => setForm((previous) => ({ ...previous, image }))} onBusy={setUploading} onError={setError} disabled={saving || uploading} />
               <label style={adLabel}>Bedding
                 <input style={adInput} name="bed" maxLength={100} value={form.bed} onChange={change} />
               </label>
@@ -2054,7 +2067,7 @@ function AdminRoomsTab({ rooms, onSaved }) {
               </label>
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
                 <button type="button" onClick={closeEdit} style={adGhostButton}>Cancel</button>
-                <button type="submit" disabled={saving} style={adPrimaryButton}>
+                <button type="submit" disabled={saving || uploading} style={adPrimaryButton}>
                   {saving ? "Saving..." : "Save changes"}
                 </button>
               </div>

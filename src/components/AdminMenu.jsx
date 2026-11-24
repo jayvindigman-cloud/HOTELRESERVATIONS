@@ -1,3 +1,4 @@
+import AdminPhotoUpload from "./AdminPhotoUpload";
 ﻿import { useCallback, useEffect, useState } from "react";
 import { accountFetch, readJson, formatPeso } from "../hotel-api";
 
@@ -7,6 +8,7 @@ const blank = { title: "", category: "", price: "", image: "", desc: "", availab
 export default function AdminMenu({ api }) {
   const [items, setItems] = useState([]);
   const [form, setForm] = useState(null);
+  const [uploading, setUploading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
   const load = useCallback(async () => setItems(await readJson(await fetch(api + "/menu", { cache: "no-store" }))), [api]);
@@ -32,12 +34,13 @@ export default function AdminMenu({ api }) {
   return (
     <section className="admin-menu-manager hotel-glass" aria-labelledby="admin-menu-title">
       <header><div><h4 id="admin-menu-title">Dining menu</h4><p>Manage the items guests can order.</p></div>
-        <button type="button" className="hotel-action" disabled={busy} onClick={() => setForm(blank)}>Add food</button>
+        <button type="button" className="hotel-action" disabled={busy || uploading} onClick={() => setForm(blank)}>Add food</button>
       </header>
       {status && <p role="status" className="account-notice">{status}</p>}
       {form && (
         <form className="admin-menu-form" onSubmit={(event) => {
           event.preventDefault();
+          if (uploading) return;
           update(form.id ? "/" + form.id : "", form.id ? "PUT" : "POST", { ...form, price: Number(form.price) }, true);
         }}>
           <h5>{form.id ? "Edit food" : "New food"}</h5>
@@ -49,11 +52,12 @@ export default function AdminMenu({ api }) {
             <label>Availability<select name="availability" value={form.availability} onChange={change}>
               {Object.entries(statuses).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select></label>
-            <label>HTTPS photo URL<input name="image" type="url" maxLength={2048} value={form.image || ""} onChange={change} /></label>
+            <label>HTTPS photo URL<input name="image" type="url" maxLength={2048} value={form.image?.startsWith("data:") ? "" : form.image || ""} onChange={change} disabled={uploading} /></label>
+            <AdminPhotoUpload value={form.image} onChange={(image) => setForm((previous) => ({ ...previous, image }))} onBusy={setUploading} onError={setStatus} disabled={busy || uploading} />
             <label>Description<textarea name="desc" rows={2} maxLength={1000} value={form.desc} onChange={change} /></label>
           </div>
-          <button className="hotel-action" disabled={busy}>Save food</button>{" "}
-          <button type="button" className="hotel-action secondary" disabled={busy} onClick={() => setForm(null)}>Cancel</button>
+          <button className="hotel-action" disabled={busy || uploading}>Save food</button>{" "}
+          <button type="button" className="hotel-action secondary" disabled={busy || uploading} onClick={() => setForm(null)}>Cancel</button>
         </form>
       )}
       <ul className="admin-menu-list">
@@ -61,11 +65,11 @@ export default function AdminMenu({ api }) {
           <li key={item.id}>
             {item.image && <img src={item.image} alt="" loading="lazy" />}
             <div><strong>{item.title}</strong><small>{item.category} · {formatPeso(item.price)}</small></div>
-            <select aria-label={"Availability for " + item.title} value={item.availability} disabled={busy}
+            <select aria-label={"Availability for " + item.title} value={item.availability} disabled={busy || uploading}
               onChange={(event) => update("/" + item.id + "/availability", "PATCH", { availability: event.target.value })}>
               {Object.entries(statuses).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select>
-            <button type="button" className="hotel-action secondary" disabled={busy} onClick={() => setForm(item)}>Edit</button>
+            <button type="button" className="hotel-action secondary" disabled={busy || uploading} onClick={() => setForm(item)}>Edit</button>
           </li>
         ))}
       </ul>

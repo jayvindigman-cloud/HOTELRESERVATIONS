@@ -1267,3 +1267,6 @@ body:has(.guest-account-dialog[open], .hotel-reservation, .hotel-receipt) { over
 .admin-recent-status { flex-shrink: 0; padding: 2px 5px; border-radius: 999px; background: #fbeece; color: #704d0e; font-size: .73rem; }
 .admin-recent-status:is([data-status="Confirmed"], [data-status="Checked out"]) { background: #e0efdc; color: #274d37; }
 .admin-recent-status[data-status="Cancelled"] { background: #f6dedb; color: #842f25; }
+
+.booking-guest-details > .bb-grid-2 { display: grid; font-weight: inherit; }
+.booking-guest-details > .bb-grid-2 > label { min-width: 0; }

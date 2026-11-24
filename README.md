@@ -11,7 +11,7 @@ Online room reservations, bistro ordering, and hotel management for Hytech Hotel
 | Feature | What guests can do |
 | --- | --- |
 | Public hotel and room directory | Browse the hotel, room photos, rates, capacity, bed details, menu, reviews, and contact information before signing in. Filter rooms by category and open the details for each room type. |
-| Availability calendar | See how many units are available out of the total for each room type and date. Confirmed reservations reduce availability, and early checkout releases the remaining nights. |
+| Availability calendar | See how many units are available out of the total for each room type and date. Pending and confirmed reservations reduce availability, and early checkout releases the remaining nights. |
 | Online reservations | Sign in when ready to reserve and return to the selected room and date. The four-step form covers rooms, stay details, extras, and payment. Book multiple rooms, enter occupants' names, and add special requests. |
 | Extras and payments | Choose optional services with photos and see an updated total. Apply eligible vouchers to room charges, choose cash or GCash, and enter a GCash reference for hotel review. |
 | Reservation receipts | View a booking reference, dates, room and occupant details, service charges, discounts, payment, and booking status. New submissions show an animated “Congratulations!” receipt while approval is pending. |

@@ -1,3 +1,4 @@
+import { reservationGuests } from "./reservationGuests";
 import useGuestUpdates from "./useGuestUpdates";
 import { roomDescriptions } from "../data/hotelCatalog";
 import GuestAccount from "./GuestAccount";
@@ -718,6 +719,7 @@ export default function HotelInfo({ user, onLogin, onGoogleLogin, onSignup, auth
 
   const guestUpdates = useGuestUpdates(API, user);
   const [accountTab, setAccountTab] = useState(null);
+  const [guestPhones, setGuestPhones] = useState({});
   const [guestNames, setGuestNames] = useState({});
   const [bookingStep, setBookingStep] = useState(0);
 
@@ -940,6 +942,7 @@ export default function HotelInfo({ user, onLogin, onGoogleLogin, onSignup, auth
     setBookingError("");
     setBookingStep(0);
     setGuestNames({});
+    setGuestPhones({});
     setSelectedExtras({});
     setExtras([]);
     setExtrasError("");
@@ -1003,7 +1006,31 @@ export default function HotelInfo({ user, onLogin, onGoogleLogin, onSignup, auth
     setBookingError("");
     if (!totalRooms || totalRooms > 20) return;
     if (bookingStep < 3) {
-      if (bookingStep === 1 && !datesValid) return;
+      if (bookingStep === 1) {
+        if (!datesValid || submittingBooking) return;
+        setSubmittingBooking(true);
+        try {
+          const quantities = new Map();
+          for (const { roomType } of bookedUnits) {
+            quantities.set(roomType, (quantities.get(roomType) || 0) + 1);
+          }
+          const checks = await Promise.all([...quantities].map(async ([room, quantity]) => {
+            const params = new URLSearchParams({ room, checkIn: formData.checkIn, checkOut: formData.checkOut });
+            const { availableRooms } = await readJson(await fetch(API + "/rooms/stay-availability?" + params, { cache: "no-store" }));
+            return { room, quantity, availableRooms };
+          }));
+          const unavailable = checks.find(({ quantity, availableRooms }) => quantity > availableRooms);
+          if (unavailable) {
+            setBookingError(unavailable.room + " is unavailable for those dates at the quantity you selected. Try fewer rooms or different dates.");
+            return;
+          }
+        } catch {
+          setBookingError("Could not check room availability. Please try again.");
+          return;
+        } finally {
+          setSubmittingBooking(false);
+        }
+      }
       setBookingStep((step) => step + 1);
       return;
     }
@@ -1019,6 +1046,8 @@ export default function HotelInfo({ user, onLogin, onGoogleLogin, onSignup, auth
           phone: formData.phone,
           rooms: bookedUnits.map(({ roomType, guests, key }, roomIndex) => ({
             roomType, guests, quantity: 1,
+            guestPhones: Array.from({ length: guests }, (_, personIndex) =>
+              roomIndex === 0 && personIndex === 0 ? formData.phone : guestPhones[key + ":" + personIndex]),
             guestNames: Array.from({ length: guests }, (_, personIndex) =>
               roomIndex === 0 && personIndex === 0 ? formData.guestName.trim() : (guestNames[key + ":" + personIndex] || "").trim()),
           })),
@@ -1078,7 +1107,7 @@ export default function HotelInfo({ user, onLogin, onGoogleLogin, onSignup, auth
         ["Selected Room:", bookingReceipt.roomType],
         ["Room Number:", bookingReceipt.roomNumber || "Assigned once confirmed"],
         ["Guests:", bookingReceipt.guests],
-        ...(bookingReceipt.guestNames?.length ? [["Room occupants:", bookingReceipt.guestNames.join(", ")]] : []),
+        ...(bookingReceipt.guestNames?.length ? [["Room occupants:", reservationGuests(bookingReceipt).join(", ")]] : []),
         ["Check-In Date:", formatDate(bookingReceipt.checkIn)],
         ["Check-Out Date:", formatDate(bookingReceipt.checkOut)],
         ...(bookingReceipt.actualCheckOut ? [["Actual Check-Out:", formatDate(bookingReceipt.actualCheckOut)]] : []),
@@ -1784,16 +1813,21 @@ export default function HotelInfo({ user, onLogin, onGoogleLogin, onSignup, auth
                   </div>
 
                   {bookedUnits.map((unit, roomIndex) => (roomIndex > 0 || unit.guests > 1) && (
-                    <fieldset className="booking-price-breakdown" key={unit.key}>
-                      <legend className="bb-label">Guest names {"\u00b7"} {unit.roomType} {bookedUnits.length > 1 ? "(room " + (roomIndex + 1) + ")" : ""}</legend>
+                    <fieldset className="booking-price-breakdown booking-guest-details" key={unit.key}>
+                      <legend className="bb-label">Guest details {"\u00b7"} {unit.roomType} {bookedUnits.length > 1 ? "(room " + (roomIndex + 1) + ")" : ""}</legend>
                       {Array.from({ length: unit.guests }, (_, personIndex) => {
                         if (roomIndex === 0 && personIndex === 0) return null;
                         const field = unit.key + ":" + personIndex;
-                        return <label className="booking-guest-name" key={field}>
+                        return <div className="bb-grid-2" key={field}><label className="booking-guest-name">
                           Guest {personIndex + 1} full name
                           <input required maxLength={100} className="bb-input" value={guestNames[field] || ""}
                             onChange={(event) => setGuestNames((previous) => ({ ...previous, [field]: event.target.value }))} />
-                        </label>;
+                        </label>
+                        <label className="booking-guest-name">
+                          Guest {personIndex + 1} contact number
+                          <ContactInput className="bb-input" value={guestPhones[field] || ""}
+                            onChange={(event) => setGuestPhones((previous) => ({ ...previous, [field]: event.target.value }))} />
+                        </label></div>;
                       })}
                     </fieldset>
                   ))}
@@ -1813,7 +1847,7 @@ export default function HotelInfo({ user, onLogin, onGoogleLogin, onSignup, auth
                       />
                     </div>
                     <div>
-                      <label className="bb-label" htmlFor="phone">Contact number</label>
+                      <label className="bb-label" htmlFor="phone">Lead guest contact number</label>
                       <ContactInput
                         id="phone"
                         className="bb-input"
