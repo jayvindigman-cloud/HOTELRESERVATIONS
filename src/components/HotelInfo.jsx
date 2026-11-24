@@ -8,6 +8,7 @@ import React, { useState, useEffect } from "react";
 import LoginModal from "./LoginModal";
 import ContactInput from "./ContactInput";
 import RoomDetails from "./RoomDetails";
+import BookingRoomCalendar from "./BookingRoomCalendar";
 
 const hotelStyles = `
 .bb-chip {
@@ -668,6 +669,7 @@ function GuestNavIcon({ name }) {
 export default function HotelInfo({ user, onLogin, onGoogleLogin, onSignup, authError, onLogout, onSaveProfile }) {
   const [detailsRoom, setDetailsRoom] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [calendarRoom, setCalendarRoom] = useState(null);
   const [bookingReceipt, setBookingReceipt] = useState(null);
   const [roomFilter, setRoomFilter] = useState("All");
   const [menuFilter, setMenuFilter] = useState("All");
@@ -1083,6 +1085,7 @@ export default function HotelInfo({ user, onLogin, onGoogleLogin, onSignup, auth
   const handleCloseModal = () => {
     if (submittingBooking) return;
     setIsModalOpen(false);
+    setCalendarRoom(null);
     setBookingReceipt(null);
     setNewReceipt(false);
     setFormData(emptyForm);
@@ -1582,6 +1585,10 @@ export default function HotelInfo({ user, onLogin, onGoogleLogin, onSignup, auth
         />
       )}
 
+      {isModalOpen && !bookingReceipt && bookingStep === 0 && calendarRoom && (
+        <BookingRoomCalendar room={calendarRoom} api={API} today={today} checkIn={formData.checkIn} onClose={() => setCalendarRoom(null)} />
+      )}
+
       {isModalOpen && (
         <div
           className="bb-overlay"
@@ -1780,6 +1787,15 @@ export default function HotelInfo({ user, onLogin, onGoogleLogin, onSignup, auth
                                 {room.image && <img src={room.image} alt="" loading="lazy" />}
                                 <span><strong>{room.name}</strong><small>{peso(room.price)} / night · Up to {room.capacity} guests</small></span>
                               </label>
+                              <button type="button" className="booking-room-calendar-button" aria-haspopup="dialog"
+                                aria-label={"Check availability for " + room.name} title="Check availability"
+                                onClick={() => setCalendarRoom(room)}>
+                                <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none"
+                                  stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                                  <rect x="3" y="5" width="18" height="16" rx="3" />
+                                  <path d="M7 3v4m10-4v4M3 10h18m-13 5h2m4 0h2" />
+                                </svg>
+                              </button>
                               {selection && (
                                 <div className="booking-room-quantities">
                                   <label>Rooms<select className="bb-input" value={selection.quantity}
