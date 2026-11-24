@@ -1295,3 +1295,6 @@ body:has(.guest-account-dialog[open], .hotel-reservation, .hotel-receipt) { over
 
 .booking-guest-details > .bb-grid-2 { display: grid; font-weight: inherit; }
 .booking-guest-details > .bb-grid-2 > label { min-width: 0; }
+
+.payment-receipt-view { display: grid; justify-items: start; gap: 8px; margin-block: 8px; }
+.payment-receipt-view img { display: block; width: auto; max-width: 100%; max-height: 55vh; border-radius: 8px; object-fit: contain; }

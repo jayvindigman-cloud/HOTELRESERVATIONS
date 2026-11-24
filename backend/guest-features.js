@@ -114,7 +114,7 @@ async function initializeGuestFeatures() {
     await pool.query("ALTER TABLE room_types MODIFY image MEDIUMTEXT NULL");
   }
   const [columns] = await pool.query("SHOW COLUMNS FROM reservations");
-  for (const [field, type] of [["extras_snapshot", "JSON"], ["actual_check_out", "DATE"], ["guest_names", "JSON"], ["guest_phones", "JSON"]]) {
+  for (const [field, type] of [["extras_snapshot", "JSON"], ["actual_check_out", "DATE"], ["guest_names", "JSON"], ["guest_phones", "JSON"], ["payment_receipt", "MEDIUMTEXT"]]) {
     if (columns.some((column) => column.Field === field)) continue;
     try {
       await pool.query("ALTER TABLE reservations ADD COLUMN ?? " + type + " NULL", [field]);

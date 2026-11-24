@@ -51,6 +51,7 @@ CREATE TABLE IF NOT EXISTS `reservations` (
   `voucher_code` varchar(40) DEFAULT NULL,
   `discount_amount` decimal(10,2) NOT NULL DEFAULT 0.00,
   `payment_reference` varchar(60) DEFAULT NULL,
+  `payment_receipt` MEDIUMTEXT NULL,
   `payment_status` varchar(10) NOT NULL DEFAULT 'Unpaid',
   `extras_snapshot` JSON NULL,
   `actual_check_out` date DEFAULT NULL,

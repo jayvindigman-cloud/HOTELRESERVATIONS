@@ -1,4 +1,4 @@
-export async function preparePhoto(file) {
+export async function preparePhoto(file, maxDimension = 640) {
   if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 10 * 1024 * 1024) {
     throw new Error("Choose a JPG, PNG, or WebP photo up to 10 MB.");
   }
@@ -7,7 +7,7 @@ export async function preparePhoto(file) {
     const image = new Image();
     image.src = url;
     await image.decode();
-    const scale = Math.min(1, 640 / Math.max(image.naturalWidth, image.naturalHeight));
+    const scale = Math.min(1, maxDimension / Math.max(image.naturalWidth, image.naturalHeight));
     const canvas = document.createElement("canvas");
     canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
     canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
@@ -15,7 +15,7 @@ export async function preparePhoto(file) {
     context.fillStyle = "#f9f7ef";
     context.fillRect(0, 0, canvas.width, canvas.height);
     context.drawImage(image, 0, 0, canvas.width, canvas.height);
-    for (const quality of [0.8, 0.64, 0.46, 0.28]) {
+    for (const quality of [0.8, 0.64, 0.46, 0.28, 0.18]) {
       const photo = canvas.toDataURL("image/jpeg", quality);
       if (photo.length <= 85000) return photo;
     }

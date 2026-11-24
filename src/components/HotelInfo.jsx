@@ -1,3 +1,4 @@
+import { preparePhoto } from "./preparePhoto";
 import { reservationGuests } from "./reservationGuests";
 import useGuestUpdates from "./useGuestUpdates";
 import { roomDescriptions } from "../data/hotelCatalog";
@@ -626,6 +627,7 @@ const emptyForm = {
   checkOut: "",
   paymentMethod: "GCash",
   paymentReference: "",
+  paymentReceipt: null,
   notes: "",
 };
 
@@ -751,6 +753,8 @@ export default function HotelInfo({ user, onLogin, onGoogleLogin, onSignup, auth
   const [extras, setExtras] = useState([]);
   const [selectedExtras, setSelectedExtras] = useState({});
   const [extrasError, setExtrasError] = useState("");
+  const [preparingReceipt, setPreparingReceipt] = useState(false);
+  const [receiptPhotoError, setReceiptPhotoError] = useState("");
   const [submittingBooking, setSubmittingBooking] = useState(false);
   const [voucherInput, setVoucherInput] = useState("");
   const [voucher, setVoucher] = useState(null);
@@ -999,9 +1003,26 @@ export default function HotelInfo({ user, onLogin, onGoogleLogin, onSignup, auth
   };
 
   const handleSelectPayment = (method) => {
+    setReceiptPhotoError("");
     setFormData((prev) => ({ ...prev, paymentMethod: method }));
   };
 
+
+  const handleReceiptPhoto = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    setReceiptPhotoError("");
+    setPreparingReceipt(true);
+    try {
+      const photo = await preparePhoto(file, 1000);
+      setFormData((previous) => ({ ...previous, paymentReceipt: photo }));
+    } catch (error) {
+      setReceiptPhotoError(error.message);
+    } finally {
+      setPreparingReceipt(false);
+    }
+  };
 
   const handleSubmitBooking = async (e) => {
     e.preventDefault();
@@ -1036,7 +1057,7 @@ export default function HotelInfo({ user, onLogin, onGoogleLogin, onSignup, auth
       setBookingStep((step) => step + 1);
       return;
     }
-    if (!datesValid || submittingBooking) return;
+    if (!datesValid || submittingBooking || preparingReceipt) return;
     setSubmittingBooking(true);
     try {
       const response = await accountFetch(`${API}/reservations`, {
@@ -1056,7 +1077,8 @@ export default function HotelInfo({ user, onLogin, onGoogleLogin, onSignup, auth
           checkIn: formData.checkIn,
           checkOut: formData.checkOut,
           paymentMethod: formData.paymentMethod,
-          paymentReference: formData.paymentMethod === "GCash" ? formData.paymentReference.trim() : null,
+          paymentReference: formData.paymentMethod === "GCash" ? formData.paymentReference : null,
+          paymentReceipt: formData.paymentMethod === "GCash" ? formData.paymentReceipt : null,
           voucherCode: voucher ? voucher.code : null,
           extraSelections: Object.entries(selectedExtras).map(([id, quantity]) => ({ id: Number(id), quantity })),
           expectedTotal: totalAmount,
@@ -1083,7 +1105,8 @@ export default function HotelInfo({ user, onLogin, onGoogleLogin, onSignup, auth
   };
 
   const handleCloseModal = () => {
-    if (submittingBooking) return;
+    if (submittingBooking || preparingReceipt) return;
+    setReceiptPhotoError("");
     setIsModalOpen(false);
     setCalendarRoom(null);
     setBookingReceipt(null);
@@ -1632,7 +1655,7 @@ export default function HotelInfo({ user, onLogin, onGoogleLogin, onSignup, auth
             <button
               className="bb-close"
               onClick={handleCloseModal}
-              disabled={submittingBooking}
+              disabled={submittingBooking || preparingReceipt}
               aria-label="Close"
               style={{
                 position: "absolute",
@@ -1991,10 +2014,42 @@ export default function HotelInfo({ user, onLogin, onGoogleLogin, onSignup, auth
                         name="paymentReference"
                         placeholder="13-digit reference number"
                         required
-                        minLength={6}
+                        inputMode="numeric"
+                        pattern="[0-9]{13}"
+                        minLength={13}
+                        maxLength={13}
+                        title="Enter exactly 13 digits."
                         value={formData.paymentReference}
-                        onChange={handleInputChange}
+                        onChange={(event) => {
+                          event.currentTarget.setCustomValidity("");
+                          handleInputChange(event);
+                        }}
+                        onPaste={(event) => {
+                          const input = event.currentTarget;
+                          const pasted = event.clipboardData.getData("text");
+                          const remaining = input.value.length - (input.selectionEnd - input.selectionStart);
+                          if (/[^0-9]/.test(pasted) || remaining + pasted.length > 13) {
+                            event.preventDefault();
+                            input.setCustomValidity("Enter exactly 13 digits.");
+                            input.reportValidity();
+                            input.setCustomValidity("");
+                          }
+                        }}
                       />
+                      <label className="bb-label" htmlFor="paymentReceipt">GCash receipt photo (optional)</label>
+                      <input id="paymentReceipt" className="bb-input" type="file"
+                        accept="image/jpeg,image/png,image/webp" disabled={preparingReceipt || submittingBooking}
+                        onChange={handleReceiptPhoto} />
+                      {preparingReceipt && <p role="status">Preparing receipt photo...</p>}
+                      {receiptPhotoError && <p role="alert">{receiptPhotoError}</p>}
+                      {formData.paymentReceipt && <div className="payment-receipt-view">
+                        <img src={formData.paymentReceipt} alt="GCash receipt preview" />
+                        <button type="button" className="hotel-action secondary" disabled={preparingReceipt || submittingBooking}
+                          onClick={() => {
+                            setReceiptPhotoError("");
+                            setFormData((previous) => ({ ...previous, paymentReceipt: null }));
+                          }}>Remove photo</button>
+                      </div>}
                     </div>
                   )}
 
@@ -2056,9 +2111,9 @@ export default function HotelInfo({ user, onLogin, onGoogleLogin, onSignup, auth
                       <strong>{datesValid ? peso(totalAmount) : "Choose stay dates"}</strong>
                     </div>
                     <div>
-                      {bookingStep > 0 && <button type="button" className="hotel-action secondary" disabled={submittingBooking}
+                      {bookingStep > 0 && <button type="button" className="hotel-action secondary" disabled={submittingBooking || preparingReceipt}
                         onClick={() => setBookingStep((step) => step - 1)}>Back</button>}
-                      <button type="submit" className="hotel-action booking-next" disabled={submittingBooking || !totalRooms || (bookingStep === 1 && !datesValid)}>
+                      <button type="submit" className="hotel-action booking-next" disabled={submittingBooking || preparingReceipt || !totalRooms || (bookingStep === 1 && !datesValid)}>
                         {submittingBooking ? "Submitting…" : ["Guest details", "Choose extras", "Continue to payment", "Reserve " + totalRooms + (totalRooms === 1 ? " room" : " rooms")][bookingStep]}
                       </button>
                     </div>

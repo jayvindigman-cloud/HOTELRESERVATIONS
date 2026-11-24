@@ -1,3 +1,4 @@
+import AdminPaymentReceipt from "./AdminPaymentReceipt";
 ﻿import { useEffect, useRef, useState } from "react";
 import { API_BASE, accountFetch, readJson } from "../hotel-api";
 import { roomDescriptions } from "../data/hotelCatalog";
@@ -171,6 +172,7 @@ export default function AdminCalendar({ reservations, rooms, today, onOpenBookin
                           </select>
                         </label>
                         {roomChoices?.length === 0 && !feedback?.error && <p>No rooms of this type have an available key for these dates.</p>}
+                        {item.hasPaymentReceipt && <AdminPaymentReceipt key={item.id} reservationId={item.id} />}
                         {item.paymentMethod === "GCash" && <p>Verify GCash reference <strong>{item.paymentReference || "on file"}</strong> before approving.</p>}
                       </> : decision.status === "Checked out" ? <p>Check out {item.guestName} today and release the remaining nights?</p> : <p>Decline this reservation for {item.guestName}?</p>}
                       <div className="admin-calendar-actions">

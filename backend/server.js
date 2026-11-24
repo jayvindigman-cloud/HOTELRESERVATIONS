@@ -96,6 +96,7 @@ const RESERVATION_SELECT = `
          t.name AS roomType, r.check_in AS checkIn, r.check_out AS checkOut, r.actual_check_out AS actualCheckOut,
          r.guests, r.guest_names AS guestNames, r.guest_phones AS guestPhones, r.nights, r.total_amount AS totalAmount,
          r.payment_method AS paymentMethod, r.payment_reference AS paymentReference,
+         r.payment_receipt IS NOT NULL AS hasPaymentReceipt,
          r.payment_status AS paymentStatus, CASE WHEN r.actual_check_out IS NOT NULL THEN 'Checked out' ELSE r.status END AS status, r.notes, r.room_type_id AS roomId,
          r.room_number AS roomNumber, r.voucher_code AS voucherCode,
          r.discount_amount AS discountAmount, r.extras_snapshot AS extras, r.created_at AS createdAt, UNIX_TIMESTAMP(r.created_at) AS createdEpoch
@@ -337,7 +338,7 @@ function bookingOwner(req, res, next) {
 
 app.post("/api/reservations", account, bookingOwner, wrap(async (req, res) => {
   const { guestName, email, phone, roomType, checkIn, checkOut,
-    guests = 1, paymentMethod = "GCash", paymentReference = null,
+    guests = 1, paymentMethod = "GCash", paymentReference = null, paymentReceipt = null,
     voucherCode = null, notes = null, extraIds = [], extraSelections, expectedTotal, rooms = [{ roomType, guests: Number(guests), quantity: 1 }] } = req.body;
 
   if (!validContact(phone)) return res.status(400).json(invalidContact);
@@ -345,8 +346,12 @@ app.post("/api/reservations", account, bookingOwner, wrap(async (req, res) => {
     return res.status(400).json({ message: "Missing required fields." });
   }
   if (!PAYMENTS.includes(paymentMethod)) return res.status(400).json({ message: "Invalid payment method." });
-  if (paymentMethod === "GCash" && String(paymentReference || "").trim().length < 6) {
-    return res.status(400).json({ message: "Enter the GCash reference number from your payment." });
+  if (paymentMethod === "GCash" && (typeof paymentReference !== "string" || paymentReference.length !== 13 || !/^[0-9]+$/.test(paymentReference))) {
+    return res.status(400).json({ message: "Enter exactly 13 digits for the GCash reference number." });
+  }
+  if (paymentReceipt !== null && (paymentMethod !== "GCash" || typeof paymentReceipt !== "string" ||
+      !paymentReceipt.startsWith("data:image/jpeg;base64,") || !validPhoto(paymentReceipt))) {
+    return res.status(400).json({ message: "Upload a valid GCash receipt image." });
   }
   if (!validDate(checkIn) || !validDate(checkOut) || checkIn >= checkOut) {
     return res.status(400).json({ message: "Choose valid stay dates. Check-out must follow check-in." });
@@ -434,11 +439,11 @@ app.post("/api/reservations", account, bookingOwner, wrap(async (req, res) => {
         const code = "RES-" + randomBytes(6).toString("hex").toUpperCase();
         const [result] = await conn.query(`INSERT INTO reservations
           (reservation_code, room_type_id, guest_name, email, phone, check_in, check_out,
-           guests, nights, total_amount, payment_method, payment_reference, voucher_code,
+           guests, nights, total_amount, payment_method, payment_reference, payment_receipt, voucher_code,
            discount_amount, status, notes, extras_snapshot, guest_names, guest_phones)
-          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?, 'Pending', ?, ?, ?, ?)`,
+          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?, 'Pending', ?, ?, ?, ?)`,
           [code, room.id, guestName, email.trim(), phone, checkIn, checkOut, guests, nights, total,
-            paymentMethod, paymentMethod === "GCash" ? String(paymentReference).trim() : null,
+            paymentMethod, paymentMethod === "GCash" ? paymentReference : null, paymentReceipt,
             appliedCode, discount / 100, notes, JSON.stringify(extras), JSON.stringify(guestNames ? guestNames.map((name) => name.trim()) : [guestName.trim()]), JSON.stringify(guestPhones || [phone])]);
         ids.push(result.insertId);
       }
@@ -468,6 +473,17 @@ app.post("/api/reservations", account, bookingOwner, wrap(async (req, res) => {
     )
   );
   res.status(201).json({ id: reservation.id, code: reservation.code, reservation, reservations });
+}));
+
+app.get("/api/reservations/:id/payment-receipt", account, admin, wrap(async (req, res) => {
+  const [[reservation]] = await pool.query(
+    "SELECT payment_receipt AS receipt FROM reservations WHERE id = ? AND payment_method = 'GCash'",
+    [req.params.id]
+  );
+  if (!reservation?.receipt) return res.status(404).json({ message: "No GCash receipt photo was uploaded." });
+  const photo = Buffer.from(reservation.receipt.split(",")[1], "base64");
+  res.set({ "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" })
+    .type("image/jpeg").send(photo);
 }));
 
 app.put("/api/reservations/:id", account, admin, wrap(async (req, res) => {

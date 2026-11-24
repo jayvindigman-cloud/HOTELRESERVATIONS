@@ -1,3 +1,4 @@
+import AdminPaymentReceipt from "./AdminPaymentReceipt";
 import AdminPhotoUpload from "./AdminPhotoUpload";
 import FoodOrderReport, { foodOrderHistoryDate } from "./FoodOrderReport";
 import AdminCustomerService from "./AdminCustomerService";
@@ -119,6 +120,7 @@ export default function AdminDashboard({ onLogout, currentUser }) {
           notes: res.notes || "",
           paymentMethod: res.paymentMethod || "",
           paymentReference: res.paymentReference || "",
+          hasPaymentReceipt: Boolean(res.hasPaymentReceipt),
           paymentStatus: res.paymentStatus || "Unpaid",
           voucherCode: res.voucherCode || "",
           discountAmount: Number(res.discountAmount || 0),
@@ -1122,6 +1124,7 @@ export default function AdminDashboard({ onLogout, currentUser }) {
                             </td>
                             <td style={{ padding: "14px 16px", fontSize: "0.82rem" }}>
                               <div style={{ fontWeight: "600" }}>{res.paymentMethod}</div>
+                              {res.hasPaymentReceipt && <AdminPaymentReceipt key={res.id} reservationId={res.id} />}
                               {res.paymentReference && (
                                 <div style={{ color: "#777" }}>Ref: {res.paymentReference}</div>
                               )}
@@ -2368,6 +2371,7 @@ function ConfirmBookingModal({ reservation, onClose, onDone }) {
           {reservation.guestName} · {reservation.roomType}<br />
           {reservation.checkIn} to {reservation.checkOut}
         </p>
+        {reservation.hasPaymentReceipt && <AdminPaymentReceipt key={reservation.id} reservationId={reservation.id} />}
         {reservation.paymentMethod === "GCash" && (
           <p style={{ margin: "0 0 14px", fontSize: "0.85rem", color: "#555" }}>
             GCash reference: <strong>{reservation.paymentReference || "none"}</strong>. Check it against your GCash history before confirming.
