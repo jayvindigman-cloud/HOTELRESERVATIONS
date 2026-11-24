@@ -1781,21 +1781,24 @@ export default function HotelInfo({ user, onLogin, onGoogleLogin, onSignup, auth
                           const roomLimit = Math.min(room.total_units ?? 1, 20 - totalRooms + (selection?.quantity || 0));
                           return (
                             <div key={room.name} className="booking-room-choice">
-                              <label className="booking-option">
-                                <input type="checkbox" checked={Boolean(selection)} disabled={!selection && roomLimit < 1}
-                                  onChange={(event) => changeRoomSelection(room, event.target.checked ? {} : null)} />
-                                {room.image && <img src={room.image} alt="" loading="lazy" />}
-                                <span><strong>{room.name}</strong><small>{peso(room.price)} / night · Up to {room.capacity} guests</small></span>
-                              </label>
-                              <button type="button" className="booking-room-calendar-button" aria-haspopup="dialog"
-                                aria-label={"Check availability for " + room.name} title="Check availability"
-                                onClick={() => setCalendarRoom(room)}>
-                                <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none"
-                                  stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-                                  <rect x="3" y="5" width="18" height="16" rx="3" />
-                                  <path d="M7 3v4m10-4v4M3 10h18m-13 5h2m4 0h2" />
-                                </svg>
-                              </button>
+                              <div className="booking-option booking-room-row">
+                                <label className="booking-room-select">
+                                  <input type="checkbox" checked={Boolean(selection)} disabled={!selection && roomLimit < 1}
+                                    onChange={(event) => changeRoomSelection(room, event.target.checked ? {} : null)} />
+                                  {room.image && <img src={room.image} alt="" loading="lazy" />}
+                                  <span><strong>{room.name}</strong><small>{peso(room.price)} / night · Up to {room.capacity} guests</small></span>
+                                </label>
+                                <button type="button" className="booking-room-calendar-button" aria-haspopup="dialog"
+                                  aria-label={"Availability for " + room.name}
+                                  onClick={() => setCalendarRoom(room)}>
+                                  <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none"
+                                    stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                                    <rect x="3" y="5" width="18" height="16" rx="3" />
+                                    <path d="M7 3v4m10-4v4M3 10h18m-13 5h2m4 0h2" />
+                                  </svg>
+                                  Availability
+                                </button>
+                              </div>
                               {selection && (
                                 <div className="booking-room-quantities">
                                   <label>Rooms<select className="bb-input" value={selection.quantity}
