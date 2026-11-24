@@ -1919,6 +1919,7 @@ const adErrorBox = {
 
 function AdminRoomsTab({ rooms, onSaved }) {
   const [uploading, setUploading] = useState(false);
+  const [notice, setNotice] = useState("");
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -1962,6 +1963,7 @@ function AdminRoomsTab({ rooms, onSaved }) {
     if (uploading) return;
     setSaving(true);
     setError("");
+    setNotice("");
     try {
       const response = await accountFetch(editing ? `${API}/rooms/${editing.id}` : `${API}/rooms`, {
         method: editing ? "PUT" : "POST",
@@ -1984,6 +1986,9 @@ function AdminRoomsTab({ rooms, onSaved }) {
         return;
       }
       closeEdit();
+      if (result.keysCreated > 0) {
+        setNotice(`${form.name.trim()} was added with ${result.keysCreated} ${result.keysCreated === 1 ? "key" : "keys"} in Key Management.`);
+      }
       onSaved();
     } catch (err) {
       console.error(err);
@@ -1998,6 +2003,7 @@ function AdminRoomsTab({ rooms, onSaved }) {
       <h3 style={adHeading}>Room Management</h3>
       <p style={adSubheading}>Configure hotel room capacity and base prices.</p>
       <button type="button" className="hotel-action" style={{ marginBottom: 16 }} onClick={openCreate}>Add room</button>
+      {notice && <p className="account-notice" role="status">{notice}</p>}
 
       {rooms.length === 0 ? (
         <div style={{ padding: "24px", border: "1px dashed #dcdfe4", borderRadius: "8px", textAlign: "center", color: "#888" }}>

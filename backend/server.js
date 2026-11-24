@@ -8,7 +8,7 @@ const pool = require("./db");
 const { validPhoto } = require("./room-photo");
 const { initializeMenu, registerMenu, menuOrderLines } = require("./menu");
 const { account, admin, verifiedEmail, privateList, initializeGuestFeatures, priceExtras, registerGuestFeatures } = require("./guest-features");
-const { router: keysRouter, initializeKeys, ensureRoomKey, backfillRoomKeys, releaseCheckoutKeys, sweepCheckoutKeys } = require("./keys");
+const { router: keysRouter, initializeKeys, ensureRoomKey, registerNewRoomKeys, backfillRoomKeys, releaseCheckoutKeys, sweepCheckoutKeys } = require("./keys");
 const { initializeSignupOtp, registerSignupOtp } = require("./signup-otp");
 
 const nodemailer = require("nodemailer");
@@ -242,24 +242,36 @@ const saveRoom = wrap(async (req, res) => {
   }
   const values = [name.trim(), category.trim(), price, capacity, totalUnits, isActive === false ? 0 : 1,
     image ? image.trim() : null, bed ? bed.trim() : null, description ? description.trim() : null];
-  try {
-    if (req.params.id) {
+  if (req.params.id) {
+    try {
       const [result] = await pool.query(
         "UPDATE room_types SET name=?, category=?, price=?, capacity=?, total_units=?, is_active=?, image=?, bed=?, description=? WHERE id=?",
         [...values, req.params.id]
       );
       if (!result.affectedRows) return res.status(404).json({ message: "Room not found." });
       return res.json({ message: "Room updated." });
+    } catch (error) {
+      if (error.code === "ER_DUP_ENTRY") return res.status(409).json({ message: "A room type with that name already exists." });
+      throw error;
     }
+  }
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
     const slug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 34).replace(/^-|-$/g, "");
-    const [result] = await pool.query(
+    const [result] = await connection.query(
       "INSERT INTO room_types (slug,name,category,price,capacity,total_units,is_active,image,bed,description) VALUES (?,?,?,?,?,?,?,?,?,?)",
       [(slug || "room") + "-" + randomBytes(5).toString("hex"), ...values]
     );
-    res.status(201).json({ id: result.insertId, message: "Room created." });
+    await registerNewRoomKeys(connection, result.insertId, totalUnits);
+    await connection.commit();
+    res.status(201).json({ id: result.insertId, keysCreated: totalUnits, message: "Room created." });
   } catch (error) {
-    if (error.code === "ER_DUP_ENTRY") return res.status(409).json({ message: "A room type with that name already exists." });
+    await connection.rollback();
+    if (error.code === "ER_DUP_ENTRY") return res.status(409).json({ message: "The room name or an automatic key label is already registered." });
     throw error;
+  } finally {
+    connection.release();
   }
 });
 app.post("/api/rooms", account, admin, saveRoom);

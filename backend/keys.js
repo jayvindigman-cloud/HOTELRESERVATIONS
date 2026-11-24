@@ -52,6 +52,25 @@ async function ensureRoomKey(connection, value) {
     [result.insertId, tag, number]);
 }
 
+async function registerNewRoomKeys(connection, roomTypeId, totalUnits) {
+  for (let start = 1; start <= totalUnits; start += 250) {
+    const units = [];
+    const keys = [];
+    for (let unit = start; unit < start + 250 && unit <= totalUnits; unit += 1) {
+      const number = "R" + roomTypeId + "-" + String(unit).padStart(2, "0");
+      units.push([number, roomTypeId]);
+      keys.push(["KEY-" + number, number]);
+    }
+    await connection.query("INSERT INTO key_room_units (room_number, room_type_id) VALUES ?", [units]);
+    await connection.query("INSERT INTO physical_keys (key_tag, room_number) VALUES ?", [keys]);
+    await connection.query(
+      "INSERT INTO physical_key_events (key_id, key_tag, room_number, action) " +
+      "SELECT id, key_tag, room_number, 'Auto registered' FROM physical_keys WHERE key_tag IN (?)",
+      [keys.map(([tag]) => tag)]
+    );
+  }
+}
+
 async function backfillRoomKeys() {
   const [bookings] = await pool.query("SELECT DISTINCT BINARY room_number AS room_number FROM reservations WHERE room_number IS NOT NULL");
   const rooms = new Set(bookings.map((booking) => String(booking.room_number).trim()).filter(Boolean));
@@ -199,4 +218,4 @@ router.use((error, req, res, next) => {
   res.status(500).json({ message: "Unable to save or load keys. Please try again." });
 });
 
-module.exports = { router, initializeKeys, ensureRoomKey, backfillRoomKeys, releaseCheckoutKeys, sweepCheckoutKeys };
+module.exports = { router, initializeKeys, ensureRoomKey, registerNewRoomKeys, backfillRoomKeys, releaseCheckoutKeys, sweepCheckoutKeys };
