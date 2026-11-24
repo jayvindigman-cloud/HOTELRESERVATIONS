@@ -9,7 +9,7 @@ const monthFormat = new Intl.DateTimeFormat("en-PH", {
 const dateFormat = new Intl.DateTimeFormat("en-PH", { dateStyle: "long", timeZone: "UTC" });
 const monthKey = (date) => date.toISOString().slice(0, 7);
 
-export default function RoomAvailabilityCalendar({ room, api, today, initialDate = today, selectedDate, setSelectedDate }) {
+export default function RoomAvailabilityCalendar({ room, api, today, initialDate = today, selectedDate, setSelectedDate, onDatePick }) {
   const titleId = useId();
   const [month, setMonth] = useState(initialDate.slice(0, 7));
   const [result, setResult] = useState(null);
@@ -57,6 +57,7 @@ export default function RoomAvailabilityCalendar({ room, api, today, initialDate
     <section className="room-calendar" aria-labelledby={titleId}>
       <h3 id={titleId}>Reservation calendar</h3>
       <p>Each date shows the rooms left out of the total for this room type.</p>
+      {onDatePick && <p>Tap an available date to set a one-night stay. You can change the dates in Your stay.</p>}
       {Number.isInteger(inventory) && <p className="room-inventory-total"><strong>{inventory}</strong> {inventory === 1 ? "room" : "rooms"} total</p>}
       <div className="room-calendar-month">
         <button type="button" aria-label="Previous month" onClick={() => changeMonth(-1)} disabled={month <= today.slice(0, 7)}>{"\u2039"}</button>
@@ -81,7 +82,10 @@ export default function RoomAvailabilityCalendar({ room, api, today, initialDate
               disabled={state !== "available"}
               aria-pressed={selectedDate === date}
               aria-label={dateFormat.format(new Date(date)) + ", " + (showCount ? remaining + (Number.isInteger(inventory) ? " of " + inventory : "") + " rooms left" : state.replace("-", " "))}
-              onClick={() => setSelectedDate(date)}
+              onClick={() => {
+                setSelectedDate(date);
+                onDatePick?.(date);
+              }}
             >
               <strong>{day}</strong>
               {showCount && <small className="room-calendar-stock">{Number.isInteger(inventory) ? remaining + "/" + inventory : remaining + " left"}</small>}

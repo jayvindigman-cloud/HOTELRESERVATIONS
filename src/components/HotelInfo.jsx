@@ -1586,7 +1586,12 @@ export default function HotelInfo({ user, onLogin, onGoogleLogin, onSignup, auth
       )}
 
       {isModalOpen && !bookingReceipt && bookingStep === 0 && calendarRoom && (
-        <BookingRoomCalendar room={calendarRoom} api={API} today={today} checkIn={formData.checkIn} onClose={() => setCalendarRoom(null)} />
+        <BookingRoomCalendar room={calendarRoom} api={API} today={today} checkIn={formData.checkIn}
+          onClose={() => setCalendarRoom(null)}
+          onDatePick={(date) => {
+            setFormData((previous) => ({ ...previous, checkIn: date, checkOut: addDays(date, 1) }));
+            setCalendarRoom(null);
+          }} />
       )}
 
       {isModalOpen && (
@@ -1775,6 +1780,7 @@ export default function HotelInfo({ user, onLogin, onGoogleLogin, onSignup, auth
                         <h4>Choose your rooms</h4><span>{totalRooms} selected</span>
                       </div>
                       <p>Mix room types or book several rooms with the same stay dates.</p>
+                      {datesValid && <p role="status">Stay dates: {formatDate(formData.checkIn)} to {formatDate(formData.checkOut)}</p>}
                       <div className="booking-room-list">
                         {rooms.map((room) => {
                           const selection = roomSelections[room.name];

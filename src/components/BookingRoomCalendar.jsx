@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import RoomAvailabilityCalendar from "./RoomAvailabilityCalendar";
 
-export default function BookingRoomCalendar({ room, api, today, checkIn, onClose }) {
+export default function BookingRoomCalendar({ room, api, today, checkIn, onClose, onDatePick }) {
   const dialog = useRef(null);
   const [selectedDate, setSelectedDate] = useState("");
 
@@ -20,7 +20,7 @@ export default function BookingRoomCalendar({ room, api, today, checkIn, onClose
         <h2 id="booking-room-calendar-title">{room.name}</h2>
         <RoomAvailabilityCalendar room={room} api={api} today={today}
           initialDate={checkIn >= today ? checkIn : today}
-          selectedDate={selectedDate} setSelectedDate={setSelectedDate} />
+          selectedDate={selectedDate} setSelectedDate={setSelectedDate} onDatePick={onDatePick} />
       </div>
     </dialog>
   );
